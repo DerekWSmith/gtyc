@@ -13,4 +13,10 @@ from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gtyc.settings')
 
-application = get_wsgi_application()
+_application = get_wsgi_application()
+
+
+def application(environ, start_response):
+    """Wrap WSGI to inject X-Forwarded-Proto for Cloudflare tunnel."""
+    environ['HTTP_X_FORWARDED_PROTO'] = 'https'
+    return _application(environ, start_response)

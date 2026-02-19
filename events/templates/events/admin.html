@@ -196,7 +196,7 @@
     }
     .event-item:hover { background-color: #f0f0f0; }
     .event-item.active { background-color: #cfe2ff; border-color: #86b7fe; }
-    .event-item.tentative { opacity: 0.7; border-left: 3px solid #ffc107; }
+    .event-item.tentative { border-left: 3px solid #ffc107; }
 
     /* Date badge */
     .event-date-badge {
@@ -336,8 +336,7 @@
             <div class="events-filters">
                 <span class="filter-label">Show:</span>
                 <button class="filter-btn active" data-filter="upcoming" onclick="setFilter('upcoming', this)">Upcoming</button>
-                <button class="filter-btn" data-filter="pending" onclick="setFilter('pending', this)">Pending</button>
-                <button class="filter-btn" data-filter="all" onclick="setFilter('all', this)">All</button>
+                <button class="filter-btn" data-filter="needs_approval" onclick="setFilter('needs_approval', this)">Needs Approval</button>
                 <input type="text" class="filter-search" id="search-input"
                        placeholder="Search events..." oninput="applySearch()">
             </div>
@@ -432,14 +431,18 @@
 
                     <!-- Approval status -->
                     <div class="mb-3" id="approval-section" style="display:none;">
-                        <div class="alert alert-warning d-flex align-items-center mb-0" id="approval-badge">
-                            <i class="bi bi-clock me-2"></i>
-                            <span id="approval-text">Pending approval</span>
+                        <div class="d-flex align-items-center gap-3 p-2 rounded" id="approval-display">
                             {% if user.can_approve_events %}
-                            <button type="button" class="btn btn-sm btn-outline-success ms-auto"
-                                    id="approve-btn" onclick="toggleApproval()">
-                                <i class="bi bi-check-circle"></i> <span id="approve-btn-text">Approve</span>
-                            </button>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       id="approval-switch" onchange="toggleApproval()">
+                                <label class="form-check-label fw-semibold" for="approval-switch"
+                                       id="approval-label">Pending</label>
+                            </div>
+                            {% else %}
+                            <span id="approval-label" class="fw-semibold">
+                                <i class="bi bi-clock me-1"></i> Pending
+                            </span>
                             {% endif %}
                         </div>
                     </div>
@@ -603,11 +606,16 @@ function selectDate(dateStr) {
 }
 
 function scrollToDate(dateStr) {
-    // Find first event on or after the selected date
-    const items = document.querySelectorAll('.event-item[data-date]');
+    // Find first event on or after the selected date and scroll it to top of list
+    const container = document.getElementById('events-list');
+    const items = container.querySelectorAll('.event-item[data-date]');
     for (const item of items) {
         if (item.dataset.date >= dateStr) {
-            item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Scroll so this item is at the top of the list container
+            container.scrollTo({
+                top: item.offsetTop - container.offsetTop,
+                behavior: 'smooth'
+            });
             // Briefly highlight
             item.style.outline = '2px solid #0d6efd';
             setTimeout(() => item.style.outline = '', 1500);
@@ -705,12 +713,14 @@ function renderEventList() {
         // Category badge colour
         const cc = catColour(e.category_id);
 
-        // Approval indicator
+        // Approval indicator — shown only for categories that require approval
         let approvalHtml = '';
-        if (e.is_tentative) {
-            approvalHtml = '<span class="approval-badge bg-warning text-dark">Tentative</span>';
-        } else if (e.requires_approval && e.is_approved) {
-            approvalHtml = '<span class="approval-badge bg-success text-white">Approved</span>';
+        if (e.requires_approval) {
+            if (e.is_approved) {
+                approvalHtml = '<span class="approval-badge bg-success text-white">Approved</span>';
+            } else {
+                approvalHtml = '<span class="approval-badge bg-warning text-dark">Pending</span>';
+            }
         }
 
         return `
@@ -842,7 +852,7 @@ async function openEditModal(eventId) {
         cb.checked = e.bar_staff_ids.includes(parseInt(cb.value));
     });
 
-    // Approval section
+    // Approval section — only shown for categories that require approval
     updateApprovalDisplay(e.is_approved, e.requires_approval);
 
     document.getElementById('modal-title').textContent = 'Edit Event';
@@ -878,18 +888,22 @@ function updateApprovalDisplay(isApproved, requiresApproval) {
 
     if (currentEventId && requiresApproval) {
         section.style.display = 'block';
-        const badge = document.getElementById('approval-badge');
-        const text = document.getElementById('approval-text');
-        const btnText = document.getElementById('approve-btn-text');
+        const display = document.getElementById('approval-display');
+        const label = document.getElementById('approval-label');
+        const toggle = document.getElementById('approval-switch');
 
         if (isApproved) {
-            badge.className = 'alert alert-success d-flex align-items-center mb-0';
-            text.textContent = 'Approved';
-            if (btnText) btnText.textContent = 'Revoke Approval';
+            display.style.background = '#d4edda';
+            label.innerHTML = canApprove
+                ? 'Approved'
+                : '<i class="bi bi-check-circle me-1"></i> Approved';
+            if (toggle) toggle.checked = true;
         } else {
-            badge.className = 'alert alert-warning d-flex align-items-center mb-0';
-            text.textContent = 'Pending approval';
-            if (btnText) btnText.textContent = 'Approve';
+            display.style.background = '#fff3cd';
+            label.innerHTML = canApprove
+                ? 'Pending'
+                : '<i class="bi bi-clock me-1"></i> Pending';
+            if (toggle) toggle.checked = false;
         }
     } else {
         section.style.display = 'none';
@@ -990,11 +1004,7 @@ async function toggleApproval() {
         return;
     }
 
-    // Re-evaluate approval display from the category's requires_approval
-    const catSel = document.getElementById('evt-category');
-    const selectedOpt = catSel.options[catSel.selectedIndex];
-    const reqApproval = selectedOpt ? selectedOpt.dataset.requiresApproval === 'true' : false;
-    updateApprovalDisplay(result.is_approved, reqApproval);
+    updateApprovalDisplay(result.is_approved, true);  // only called when requires_approval
     loadEvents();
 }
 

@@ -73,7 +73,7 @@ def admin_page(request):
 @admin_required
 @require_GET
 def api_event_list(request):
-    """Return events as JSON. Optional filter: ?filter=upcoming|pending|all"""
+    """Return events as JSON. Optional filter: ?filter=upcoming|needs_approval"""
     filter_type = request.GET.get('filter', 'upcoming')
     now = timezone.now()
 
@@ -81,9 +81,12 @@ def api_event_list(request):
 
     if filter_type == 'upcoming':
         qs = qs.filter(start_datetime__gte=now)
-    elif filter_type == 'pending':
-        qs = qs.filter(is_approved=False)
-    # 'all' returns everything
+    elif filter_type == 'needs_approval':
+        qs = qs.filter(
+            is_approved=False,
+            category__requires_approval=True,
+            start_datetime__gte=now,
+        )
 
     events = []
     for e in qs.prefetch_related('bar_staff'):

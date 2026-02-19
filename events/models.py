@@ -47,7 +47,7 @@ class Event(models.Model):
     )
     is_approved = models.BooleanField(
         default=True,
-        help_text='Approval flag — Event Officer can toggle. Types requiring approval default to False.',
+        help_text='Approval flag — categories with requires_approval default to False on creation.',
     )
 
     start_datetime = models.DateTimeField(db_index=True)
@@ -96,10 +96,11 @@ class Event(models.Model):
 
     @property
     def is_tentative(self):
+        """Event is tentative (pending) if its category requires approval and it hasn't been approved."""
         return self.requires_approval and not self.is_approved
 
     def save(self, *args, **kwargs):
-        # Auto-set approval flag for new events
+        # New events in a requires_approval category start unapproved
         if self.pk is None and self.requires_approval:
             self.is_approved = False
         super().save(*args, **kwargs)

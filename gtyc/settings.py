@@ -12,9 +12,14 @@ load_dotenv(BASE_DIR / '.env')
 # Security
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
-ALLOWED_HOSTS = ['*']  # Zrok handles routing; tighten for production if needed
+ALLOWED_HOSTS = ['*']
 
-# Zrok proxy headers
+# Trusted origins for CSRF — Cloudflare tunnel terminates TLS
+CSRF_TRUSTED_ORIGINS = [
+    'https://gtyc.harmonyfactory.com',
+]
+
+# Proxy headers (Cloudflare / Nginx set X-Forwarded-Proto)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 
