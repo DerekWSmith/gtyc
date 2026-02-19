@@ -8,7 +8,7 @@
 wsgi_app = "gtyc.wsgi:application"
 
 # Bind to localhost only — Nginx fronts this on :7030
-bind = "127.0.0.1:7031"
+bind = "127.0.0.1:7030"
 
 # Workers — small site, 2 is plenty
 workers = 2
