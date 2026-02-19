@@ -1,0 +1,1166 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Events — GTYC{% endblock %}
+
+{% block head %}
+<!-- Flatpickr for date/time pickers in modal -->
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ---- Layout ---- */
+    .events-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        height: calc(100vh - 100px);
+        display: flex;
+        flex-direction: column;
+    }
+    .events-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        flex-shrink: 0;
+    }
+    .events-content {
+        display: flex;
+        gap: 1.25rem;
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* ---- Left sidebar: calendars ---- */
+    .events-sidebar {
+        width: 280px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    /* Calendar navigation */
+    .calendar-selectors {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-bottom: 0.75rem;
+    }
+    .calendar-selectors select {
+        font-size: 0.85rem;
+        padding: 0.2rem 0.4rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background: #fff;
+    }
+    .cal-nav-btn {
+        background: none;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.2rem 0.5rem;
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: #495057;
+    }
+    .cal-nav-btn:hover { background: #e9ecef; }
+
+    /* Mini calendar */
+    .mini-calendar {
+        margin-bottom: 1rem;
+    }
+    .mini-calendar-title {
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        color: #495057;
+    }
+    .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.15rem;
+    }
+    .calendar-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+    }
+    .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        cursor: pointer;
+        position: relative;
+        transition: background-color 0.15s;
+    }
+    .calendar-day:hover { background-color: #e9ecef; }
+    .calendar-day.other-month { color: #ced4da; }
+    .calendar-day.today {
+        background-color: #e7f1ff;
+        font-weight: 600;
+    }
+    .calendar-day.selected {
+        background-color: #0d6efd;
+        color: #fff;
+        font-weight: 600;
+    }
+    .calendar-day.selected:hover { background-color: #0b5ed7; }
+    .calendar-day.has-events::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        width: 5px;
+        height: 5px;
+        background: #0d6efd;
+        border-radius: 50%;
+    }
+    .calendar-day.selected.has-events::after {
+        background: #fff;
+    }
+
+    /* ---- Right panel: filters + event list ---- */
+    .events-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .events-filters {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 0.5rem;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+    .events-filters .filter-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+    .filter-btn {
+        border: 1px solid #dee2e6;
+        background: #fff;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        color: #495057;
+    }
+    .filter-btn:hover { background: #e9ecef; }
+    .filter-btn.active {
+        background: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+    .filter-search {
+        margin-left: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        width: 180px;
+        outline: none;
+    }
+    .filter-search:focus { border-color: #86b7fe; box-shadow: 0 0 0 0.15rem rgba(13,110,253,.15); }
+
+    /* Event list */
+    .events-list {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .event-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.15s;
+        border: 1px solid transparent;
+    }
+    .event-item:hover { background-color: #f0f0f0; }
+    .event-item.active { background-color: #cfe2ff; border-color: #86b7fe; }
+    .event-item.tentative { opacity: 0.7; border-left: 3px solid #ffc107; }
+
+    /* Date badge */
+    .event-date-badge {
+        text-align: center;
+        min-width: 44px;
+        flex-shrink: 0;
+    }
+    .event-date-badge .day {
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #212529;
+    }
+    .event-date-badge .month {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    /* Event details */
+    .event-details {
+        flex: 1;
+        min-width: 0;
+    }
+    .event-title-text {
+        font-weight: 600;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .event-meta {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.15rem;
+    }
+    .event-type-badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    /* Category colour classes (generated dynamically via hashing) */
+    .cat-badge { background: #e2e3e5; color: #383d41; }
+
+    .approval-badge {
+        font-size: 0.7rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 10px;
+    }
+
+    /* ---- Event Types modal ---- */
+    .cat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .cat-item:last-child { border-bottom: none; }
+    .cat-item .cat-name {
+        flex: 1;
+        font-weight: 500;
+    }
+    .cat-item .form-check { margin: 0; }
+
+    /* ---- Modal form tweaks ---- */
+    .flatpickr-input { background: #fff !important; }
+    .form-row-datetime { display: flex; gap: 0.5rem; }
+    .form-row-datetime .form-group { flex: 1; }
+    .form-row-datetime .time-group { max-width: 120px; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 768px) {
+        .events-content { flex-direction: column; height: auto; }
+        .events-sidebar { width: 100%; }
+        .events-container { height: auto; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="events-container px-3">
+    <!-- Header -->
+    <div class="events-header">
+        <h4 class="mb-0"><i class="bi bi-calendar-event"></i> Manage Events</h4>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="openCategoriesModal()">
+                <i class="bi bi-tags"></i> Event Types
+            </button>
+            <button class="btn btn-success btn-sm" id="btn-add-event" onclick="openCreateModal()">
+                <i class="bi bi-plus-circle"></i> Event
+            </button>
+        </div>
+    </div>
+
+    <!-- Two-panel layout -->
+    <div class="events-content">
+        <!-- LEFT SIDEBAR: Calendars -->
+        <aside class="events-sidebar">
+            <div class="calendar-selectors">
+                <button class="cal-nav-btn" id="cal-prev-month" title="Previous month">&#9664;</button>
+                <select id="cal-month-select"></select>
+                <select id="cal-year-select"></select>
+                <button class="cal-nav-btn" id="cal-next-month" title="Next month">&#9654;</button>
+            </div>
+
+            <div class="calendars-container">
+                <!-- Month 1 -->
+                <div class="mini-calendar">
+                    <div class="mini-calendar-title" id="calendar-1-title"></div>
+                    <div class="calendar-weekdays">
+                        <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+                    </div>
+                    <div class="calendar-days" id="calendar-1-days"></div>
+                </div>
+
+                <!-- Month 2 (next month) -->
+                <div class="mini-calendar">
+                    <div class="mini-calendar-title" id="calendar-2-title"></div>
+                    <div class="calendar-weekdays">
+                        <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+                    </div>
+                    <div class="calendar-days" id="calendar-2-days"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- RIGHT PANEL: Filters + Event List -->
+        <main class="events-main">
+            <div class="events-filters">
+                <span class="filter-label">Show:</span>
+                <button class="filter-btn active" data-filter="upcoming" onclick="setFilter('upcoming', this)">Upcoming</button>
+                <button class="filter-btn" data-filter="pending" onclick="setFilter('pending', this)">Pending</button>
+                <button class="filter-btn" data-filter="all" onclick="setFilter('all', this)">All</button>
+                <input type="text" class="filter-search" id="search-input"
+                       placeholder="Search events..." oninput="applySearch()">
+            </div>
+
+            <div class="events-list" id="events-list">
+                <!-- Populated by JS -->
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Event Modal (Create / Edit)                                   -->
+<!-- ============================================================ -->
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title">New Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="event-form">
+                    <!-- Title + Type -->
+                    <div class="row mb-3">
+                        <div class="col-8">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" id="evt-title" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">Type</label>
+                            <select class="form-select" id="evt-category">
+                                <option value="">-- Select --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" data-requires-approval="{{ cat.requires_approval|yesno:'true,false' }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Date/Time with Flatpickr -->
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="text" class="form-control" id="evt-start-date" placeholder="Date">
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label">Start Time</label>
+                            <input type="text" class="form-control" id="evt-start-time" placeholder="Time">
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label">End Date</label>
+                            <input type="text" class="form-control" id="evt-end-date" placeholder="Date">
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label">End Time</label>
+                            <input type="text" class="form-control" id="evt-end-time" placeholder="Time">
+                        </div>
+                    </div>
+
+                    <!-- Contact -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Contact Name</label>
+                            <input type="text" class="form-control" id="evt-contact-name">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Contact Phone</label>
+                            <input type="text" class="form-control" id="evt-contact-phone">
+                        </div>
+                    </div>
+
+                    <!-- Bar Staff -->
+                    <div class="mb-3">
+                        <label class="form-label">Bar Staff (select up to 4)</label>
+                        <div id="staff-checkboxes">
+                            {% for s in staff_list %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input staff-cb" type="checkbox"
+                                       value="{{ s.id }}" id="staff-{{ s.id }}">
+                                <label class="form-check-label" for="staff-{{ s.id }}">{{ s.name }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="evt-notes" rows="3"></textarea>
+                    </div>
+
+                    <!-- Approval status -->
+                    <div class="mb-3" id="approval-section" style="display:none;">
+                        <div class="alert alert-warning d-flex align-items-center mb-0" id="approval-badge">
+                            <i class="bi bi-clock me-2"></i>
+                            <span id="approval-text">Pending approval</span>
+                            {% if user.can_approve_events %}
+                            <button type="button" class="btn btn-sm btn-outline-success ms-auto"
+                                    id="approve-btn" onclick="toggleApproval()">
+                                <i class="bi bi-check-circle"></i> <span id="approve-btn-text">Approve</span>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                {% if user.can_approve_events %}
+                <button type="button" class="btn btn-danger me-auto d-none" id="delete-btn" onclick="deleteEvent()">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+                {% endif %}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-btn" onclick="saveEvent()">
+                    <i class="bi bi-check-circle"></i> <span id="save-btn-text">Create Event</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Event Types Modal                                              -->
+<!-- ============================================================ -->
+<div class="modal fade" id="categoriesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-tags"></i> Event Types</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="categories-list">
+                    <!-- Populated by JS -->
+                </div>
+                <hr>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" id="new-cat-name"
+                           placeholder="New event type name...">
+                    <button class="btn btn-success btn-sm text-nowrap" onclick="createCategory()">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+// ==================================================================
+// State
+// ==================================================================
+let currentEventId = null;
+let selectedDate = new Date();
+let displayMonth = new Date().getMonth();
+let displayYear = new Date().getFullYear();
+let currentFilter = 'upcoming';
+let searchTerm = '';
+let allEvents = [];  // cached for filtering/searching
+const canApprove = {{ user.can_approve_events|yesno:"true,false" }};
+
+// Categories from server (will be refreshed dynamically)
+let categoriesData = [
+    {% for cat in categories %}
+    { id: {{ cat.id }}, name: '{{ cat.name|escapejs }}', requires_approval: {{ cat.requires_approval|yesno:"true,false" }} },
+    {% endfor %}
+];
+
+// Category colour palette (consistent hashing)
+const CAT_COLOURS = [
+    { bg: '#d1ecf1', fg: '#0c5460' },
+    { bg: '#f8d7da', fg: '#721c24' },
+    { bg: '#fff3cd', fg: '#856404' },
+    { bg: '#d4edda', fg: '#155724' },
+    { bg: '#e2e3e5', fg: '#383d41' },
+    { bg: '#cce5ff', fg: '#004085' },
+    { bg: '#f5c6cb', fg: '#721c24' },
+    { bg: '#d6d8db', fg: '#1b1e21' },
+];
+function catColour(catId) {
+    if (!catId) return CAT_COLOURS[4]; // grey for "Other"/null
+    return CAT_COLOURS[(catId - 1) % CAT_COLOURS.length];
+}
+
+// Dates that have events (for calendar dot indicators)
+const eventDatesSet = new Set({{ event_date_strings_json|safe }});
+
+// ==================================================================
+// Calendar rendering
+// ==================================================================
+const MONTH_NAMES = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
+function renderMonth(year, month, daysContainer, titleEl) {
+    titleEl.textContent = `${MONTH_NAMES[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    // Monday=0 start (JS: 0=Sun, so shift)
+    let startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const selectedStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
+
+    let html = '';
+
+    // Padding days from previous month
+    const prevLast = new Date(year, month, 0).getDate();
+    for (let i = startDow - 1; i >= 0; i--) {
+        const d = prevLast - i;
+        html += `<div class="calendar-day other-month">${d}</div>`;
+    }
+
+    // Current month days
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        let classes = 'calendar-day';
+        if (dateStr === todayStr) classes += ' today';
+        if (dateStr === selectedStr) classes += ' selected';
+        if (eventDatesSet.has(dateStr)) classes += ' has-events';
+        html += `<div class="${classes}" data-date="${dateStr}" onclick="selectDate('${dateStr}')">${d}</div>`;
+    }
+
+    // Fill to 42 cells (6 rows)
+    const totalCells = startDow + lastDay.getDate();
+    const remaining = (7 - (totalCells % 7)) % 7;
+    for (let d = 1; d <= remaining; d++) {
+        html += `<div class="calendar-day other-month">${d}</div>`;
+    }
+
+    daysContainer.innerHTML = html;
+}
+
+function renderCalendars() {
+    renderMonth(displayYear, displayMonth,
+        document.getElementById('calendar-1-days'),
+        document.getElementById('calendar-1-title'));
+
+    // Next month
+    let m2 = displayMonth + 1, y2 = displayYear;
+    if (m2 > 11) { m2 = 0; y2++; }
+    renderMonth(y2, m2,
+        document.getElementById('calendar-2-days'),
+        document.getElementById('calendar-2-title'));
+
+    // Sync selectors
+    document.getElementById('cal-month-select').value = displayMonth;
+    document.getElementById('cal-year-select').value = displayYear;
+}
+
+function selectDate(dateStr) {
+    selectedDate = new Date(dateStr + 'T00:00:00');
+    renderCalendars();
+    scrollToDate(dateStr);
+}
+
+function scrollToDate(dateStr) {
+    // Find first event on or after the selected date
+    const items = document.querySelectorAll('.event-item[data-date]');
+    for (const item of items) {
+        if (item.dataset.date >= dateStr) {
+            item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Briefly highlight
+            item.style.outline = '2px solid #0d6efd';
+            setTimeout(() => item.style.outline = '', 1500);
+            return;
+        }
+    }
+}
+
+// Calendar navigation
+function initCalendarNav() {
+    const monthSel = document.getElementById('cal-month-select');
+    const yearSel = document.getElementById('cal-year-select');
+
+    MONTH_NAMES.forEach((name, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = name.substring(0, 3);
+        monthSel.appendChild(opt);
+    });
+
+    const thisYear = new Date().getFullYear();
+    for (let y = thisYear - 1; y <= thisYear + 3; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        yearSel.appendChild(opt);
+    }
+
+    monthSel.addEventListener('change', () => {
+        displayMonth = parseInt(monthSel.value);
+        renderCalendars();
+    });
+    yearSel.addEventListener('change', () => {
+        displayYear = parseInt(yearSel.value);
+        renderCalendars();
+    });
+
+    document.getElementById('cal-prev-month').addEventListener('click', () => {
+        displayMonth--;
+        if (displayMonth < 0) { displayMonth = 11; displayYear--; }
+        renderCalendars();
+    });
+    document.getElementById('cal-next-month').addEventListener('click', () => {
+        displayMonth++;
+        if (displayMonth > 11) { displayMonth = 0; displayYear++; }
+        renderCalendars();
+    });
+}
+
+
+// ==================================================================
+// Event list rendering
+// ==================================================================
+async function loadEvents() {
+    const data = await apiFetch(`/events/admin/api/list/?filter=${currentFilter}`);
+    allEvents = data.events || [];
+    renderEventList();
+}
+
+function renderEventList() {
+    let events = allEvents;
+
+    // Apply search
+    if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        events = events.filter(e =>
+            e.title.toLowerCase().includes(q) ||
+            e.category_name.toLowerCase().includes(q) ||
+            (e.contact_name && e.contact_name.toLowerCase().includes(q))
+        );
+    }
+
+    const container = document.getElementById('events-list');
+
+    if (events.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
+                <p class="mt-2">No events found.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = events.map(e => {
+        // Parse date for badge
+        const dt = new Date(e.start_datetime);
+        const day = dt.getDate();
+        const monthShort = MONTH_NAMES[dt.getMonth()].substring(0, 3);
+        const dateStr = e.start_datetime.substring(0, 10);
+
+        let classes = 'event-item';
+        if (e.is_tentative) classes += ' tentative';
+        if (e.id === currentEventId) classes += ' active';
+
+        // Category badge colour
+        const cc = catColour(e.category_id);
+
+        // Approval indicator
+        let approvalHtml = '';
+        if (e.is_tentative) {
+            approvalHtml = '<span class="approval-badge bg-warning text-dark">Tentative</span>';
+        } else if (e.requires_approval && e.is_approved) {
+            approvalHtml = '<span class="approval-badge bg-success text-white">Approved</span>';
+        }
+
+        return `
+            <div class="${classes}" data-date="${dateStr}" data-id="${e.id}"
+                 onclick="openEditModal(${e.id})">
+                <div class="event-date-badge">
+                    <div class="day">${day}</div>
+                    <div class="month">${monthShort}</div>
+                </div>
+                <div class="event-details">
+                    <div class="event-title-text">${escHtml(e.title)}</div>
+                    <div class="event-meta">
+                        <span class="event-type-badge" style="background:${cc.bg};color:${cc.fg};">${escHtml(e.category_name)}</span>
+                        ${e.contact_name ? '<span>' + escHtml(e.contact_name) + '</span>' : ''}
+                        <span>${e.start_display} – ${e.end_display}</span>
+                        ${approvalHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadEvents();
+}
+
+function applySearch() {
+    searchTerm = document.getElementById('search-input').value.trim();
+    renderEventList();
+}
+
+
+// ==================================================================
+// Flatpickr setup
+// ==================================================================
+let fpStartDate, fpStartTime, fpEndDate, fpEndTime;
+
+function initFlatpickr() {
+    const fpDateConfig = {
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'j M Y',
+        allowInput: true,
+    };
+    const fpTimeConfig = {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: 'H:i',
+        altInput: true,
+        altFormat: 'h:i K',
+        time_24hr: false,
+        allowInput: true,
+    };
+
+    fpStartDate = flatpickr('#evt-start-date', {
+        ...fpDateConfig,
+        onChange: (selectedDates, dateStr) => {
+            if (fpEndDate) {
+                fpEndDate.setDate(dateStr);
+            }
+        }
+    });
+
+    fpStartTime = flatpickr('#evt-start-time', {
+        ...fpTimeConfig,
+        onChange: (selectedDates) => {
+            if (fpEndTime && selectedDates.length) {
+                fpEndTime.setDate(new Date(selectedDates[0]));
+            }
+        }
+    });
+
+    fpEndDate = flatpickr('#evt-end-date', { ...fpDateConfig });
+    fpEndTime = flatpickr('#evt-end-time', { ...fpTimeConfig });
+}
+
+
+// ==================================================================
+// Modal management
+// ==================================================================
+function openCreateModal() {
+    currentEventId = null;
+    resetForm();
+
+    // Pre-fill date from calendar selection
+    const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
+    fpStartDate.setDate(dateStr);
+    fpEndDate.setDate(dateStr);
+    fpStartTime.clear();
+    fpEndTime.clear();
+
+    document.getElementById('modal-title').textContent = 'New Event';
+    document.getElementById('save-btn-text').textContent = 'Create Event';
+    document.getElementById('approval-section').style.display = 'none';
+
+    const deleteBtn = document.getElementById('delete-btn');
+    if (deleteBtn) deleteBtn.classList.add('d-none');
+
+    const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+    modal.show();
+}
+
+async function openEditModal(eventId) {
+    currentEventId = eventId;
+    const data = await apiFetch(`/events/admin/api/${eventId}/`);
+    const e = data.event;
+
+    document.getElementById('evt-title').value = e.title;
+    document.getElementById('evt-category').value = e.category_id || '';
+
+    // Parse start/end datetime for Flatpickr
+    const [startDate, startTime] = e.start_datetime.split('T');
+    const [endDate, endTime] = e.end_datetime.split('T');
+    fpStartDate.setDate(startDate);
+    fpStartTime.setDate(startTime);
+    fpEndDate.setDate(endDate);
+    fpEndTime.setDate(endTime);
+
+    document.getElementById('evt-contact-name').value = e.contact_name;
+    document.getElementById('evt-contact-phone').value = e.contact_phone;
+    document.getElementById('evt-notes').value = e.notes;
+
+    // Staff checkboxes
+    document.querySelectorAll('.staff-cb').forEach(cb => {
+        cb.checked = e.bar_staff_ids.includes(parseInt(cb.value));
+    });
+
+    // Approval section
+    updateApprovalDisplay(e.is_approved, e.requires_approval);
+
+    document.getElementById('modal-title').textContent = 'Edit Event';
+    document.getElementById('save-btn-text').textContent = 'Save Changes';
+
+    const deleteBtn = document.getElementById('delete-btn');
+    if (deleteBtn) deleteBtn.classList.remove('d-none');
+
+    const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+    modal.show();
+
+    // Highlight in list
+    document.querySelectorAll('.event-item').forEach(item => {
+        item.classList.toggle('active', parseInt(item.dataset.id) === eventId);
+    });
+}
+
+function resetForm() {
+    document.getElementById('evt-title').value = '';
+    document.getElementById('evt-category').value = '';
+    document.getElementById('evt-contact-name').value = '';
+    document.getElementById('evt-contact-phone').value = '';
+    document.getElementById('evt-notes').value = '';
+    document.querySelectorAll('.staff-cb').forEach(cb => cb.checked = false);
+    if (fpStartDate) fpStartDate.clear();
+    if (fpStartTime) fpStartTime.clear();
+    if (fpEndDate) fpEndDate.clear();
+    if (fpEndTime) fpEndTime.clear();
+}
+
+function updateApprovalDisplay(isApproved, requiresApproval) {
+    const section = document.getElementById('approval-section');
+
+    if (currentEventId && requiresApproval) {
+        section.style.display = 'block';
+        const badge = document.getElementById('approval-badge');
+        const text = document.getElementById('approval-text');
+        const btnText = document.getElementById('approve-btn-text');
+
+        if (isApproved) {
+            badge.className = 'alert alert-success d-flex align-items-center mb-0';
+            text.textContent = 'Approved';
+            if (btnText) btnText.textContent = 'Revoke Approval';
+        } else {
+            badge.className = 'alert alert-warning d-flex align-items-center mb-0';
+            text.textContent = 'Pending approval';
+            if (btnText) btnText.textContent = 'Approve';
+        }
+    } else {
+        section.style.display = 'none';
+    }
+}
+
+
+// ==================================================================
+// CRUD operations
+// ==================================================================
+async function saveEvent() {
+    const staffIds = [];
+    document.querySelectorAll('.staff-cb:checked').forEach(cb => {
+        staffIds.push(parseInt(cb.value));
+    });
+
+    if (staffIds.length > 4) {
+        alert('Maximum 4 bar staff per event.');
+        return;
+    }
+
+    // Build datetime strings from Flatpickr values
+    const startDate = document.getElementById('evt-start-date').value;
+    const startTime = document.getElementById('evt-start-time').value || '09:00';
+    const endDate = document.getElementById('evt-end-date').value || startDate;
+    const endTime = document.getElementById('evt-end-time').value || '17:00';
+
+    const categoryId = document.getElementById('evt-category').value;
+
+    const payload = {
+        title: document.getElementById('evt-title').value.trim(),
+        category_id: categoryId ? parseInt(categoryId) : null,
+        start_datetime: `${startDate}T${startTime}`,
+        end_datetime: `${endDate}T${endTime}`,
+        contact_name: document.getElementById('evt-contact-name').value.trim(),
+        contact_phone: document.getElementById('evt-contact-phone').value.trim(),
+        notes: document.getElementById('evt-notes').value.trim(),
+        bar_staff_ids: staffIds,
+    };
+
+    if (!payload.title) return alert('Title is required');
+    if (!startDate) return alert('Start date is required');
+
+    let url;
+    if (currentEventId) {
+        url = `/events/admin/api/${currentEventId}/update/`;
+    } else {
+        url = '/events/admin/api/create/';
+    }
+
+    const result = await apiFetch(url, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    // Update event dates set for calendar dots
+    if (!currentEventId && startDate) {
+        eventDatesSet.add(startDate);
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+    loadEvents();
+    renderCalendars();
+}
+
+async function deleteEvent() {
+    if (!currentEventId) return;
+    if (!confirm('Delete this event? This cannot be undone.')) return;
+
+    const result = await apiFetch(`/events/admin/api/${currentEventId}/delete/`, {
+        method: 'POST',
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    currentEventId = null;
+    bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+    loadEvents();
+}
+
+async function toggleApproval() {
+    if (!currentEventId) return;
+
+    const result = await apiFetch(`/events/admin/api/${currentEventId}/approve/`, {
+        method: 'POST',
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    // Re-evaluate approval display from the category's requires_approval
+    const catSel = document.getElementById('evt-category');
+    const selectedOpt = catSel.options[catSel.selectedIndex];
+    const reqApproval = selectedOpt ? selectedOpt.dataset.requiresApproval === 'true' : false;
+    updateApprovalDisplay(result.is_approved, reqApproval);
+    loadEvents();
+}
+
+
+// ==================================================================
+// Event Types (Categories) CRUD
+// ==================================================================
+function openCategoriesModal() {
+    loadCategories();
+    const modal = new bootstrap.Modal(document.getElementById('categoriesModal'));
+    modal.show();
+}
+
+async function loadCategories() {
+    const data = await apiFetch('/events/admin/api/categories/');
+    categoriesData = data.categories || [];
+    renderCategoriesList();
+}
+
+function renderCategoriesList() {
+    const container = document.getElementById('categories-list');
+
+    if (categoriesData.length === 0) {
+        container.innerHTML = '<p class="text-muted">No event types defined.</p>';
+        return;
+    }
+
+    container.innerHTML = categoriesData.map(c => `
+        <div class="cat-item" data-id="${c.id}">
+            <span class="cat-name" id="cat-name-${c.id}">${escHtml(c.name)}</span>
+            <div class="form-check form-switch" title="Requires approval">
+                <input class="form-check-input" type="checkbox" id="cat-approval-${c.id}"
+                       ${c.requires_approval ? 'checked' : ''}
+                       onchange="toggleCategoryApproval(${c.id}, this.checked)">
+                <label class="form-check-label small text-muted" for="cat-approval-${c.id}">Approval</label>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="renameCategory(${c.id})" title="Rename">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${c.id})" title="Remove">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function createCategory() {
+    const input = document.getElementById('new-cat-name');
+    const name = input.value.trim();
+    if (!name) return;
+
+    const result = await apiFetch('/events/admin/api/categories/create/', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    input.value = '';
+    loadCategories();
+    refreshCategoryDropdown();
+}
+
+async function renameCategory(catId) {
+    const current = categoriesData.find(c => c.id === catId);
+    const newName = prompt('Rename event type:', current ? current.name : '');
+    if (!newName || newName.trim() === '') return;
+
+    const result = await apiFetch(`/events/admin/api/categories/${catId}/update/`, {
+        method: 'POST',
+        body: JSON.stringify({ name: newName.trim() }),
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    loadCategories();
+    refreshCategoryDropdown();
+}
+
+async function toggleCategoryApproval(catId, requiresApproval) {
+    const result = await apiFetch(`/events/admin/api/categories/${catId}/update/`, {
+        method: 'POST',
+        body: JSON.stringify({ requires_approval: requiresApproval }),
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    // Update local data
+    const cat = categoriesData.find(c => c.id === catId);
+    if (cat) cat.requires_approval = requiresApproval;
+    refreshCategoryDropdown();
+}
+
+async function deleteCategory(catId) {
+    const cat = categoriesData.find(c => c.id === catId);
+    if (!confirm(`Remove "${cat ? cat.name : 'this type'}"? Existing events will keep their current type label.`)) return;
+
+    const result = await apiFetch(`/events/admin/api/categories/${catId}/delete/`, {
+        method: 'POST',
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    loadCategories();
+    refreshCategoryDropdown();
+}
+
+function refreshCategoryDropdown() {
+    // Refresh the category <select> in the event modal
+    const sel = document.getElementById('evt-category');
+    const currentVal = sel.value;
+    // Keep just the placeholder
+    sel.innerHTML = '<option value="">-- Select --</option>';
+    categoriesData.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        opt.dataset.requiresApproval = c.requires_approval ? 'true' : 'false';
+        sel.appendChild(opt);
+    });
+    // Restore selection if still valid
+    sel.value = currentVal;
+}
+
+
+// ==================================================================
+// Helpers
+// ==================================================================
+async function apiFetch(url, options = {}) {
+    const defaults = {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN,
+        },
+    };
+    const resp = await fetch(url, { ...defaults, ...options });
+    return resp.json();
+}
+
+function escHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+}
+
+
+// ==================================================================
+// Init
+// ==================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    initCalendarNav();
+    initFlatpickr();
+    renderCalendars();
+    loadEvents();
+});
+</script>
+{% endblock %}

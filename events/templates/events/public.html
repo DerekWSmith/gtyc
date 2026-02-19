@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Events — GTYC{% endblock %}
+
+{% block extra_css %}
+<style>
+    .event-card.tentative {
+        opacity: 0.7;
+        border-left: 4px solid #ffc107;
+    }
+    .event-card.tentative .event-title::after {
+        content: ' (Tentative)';
+        font-size: 0.8rem;
+        color: #856404;
+        font-weight: normal;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 700px;">
+    <h3 class="text-center mb-1"><i class="bi bi-calendar-event"></i> Upcoming Events</h3>
+    <p class="text-center text-muted mb-3">George Town Yacht Club</p>
+
+    {% if events %}
+    <div class="list-group">
+        {% for event in events %}
+        <div class="list-group-item event-card {% if event.is_tentative %}tentative{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-semibold event-title">{{ event.title }}</div>
+                    <small class="text-muted">
+                        <i class="bi bi-clock"></i>
+                        {{ event.start_datetime|date:"D d M Y" }}
+                        &middot;
+                        {{ event.start_datetime|date:"g:i A" }} – {{ event.end_datetime|date:"g:i A" }}
+                    </small>
+                </div>
+                <span class="badge bg-secondary">{{ event.category_name }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-calendar-x" style="font-size: 2.5rem;"></i>
+        <p class="mt-2">No upcoming events scheduled.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

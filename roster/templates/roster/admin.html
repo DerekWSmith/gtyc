@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Roster — GTYC{% endblock %}
+
+{% block extra_css %}
+<style>
+    .roster-layout { display: flex; gap: 1.5rem; height: calc(100vh - 120px); }
+    .staff-panel { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; }
+    .dates-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .staff-list { flex: 1; overflow-y: auto; }
+    .staff-card { cursor: grab; transition: background-color 0.15s; }
+    .staff-card:active { cursor: grabbing; }
+    .staff-card.dragging { opacity: 0.5; }
+    .staff-card.drag-over { border-top: 3px solid #0d6efd; }
+
+    .dates-grid { flex: 1; overflow-y: auto; }
+
+    .date-row { display: flex; align-items: center; padding: 0.4rem 0.75rem; border-bottom: 1px solid #dee2e6; }
+    .date-row:nth-child(even) { background-color: #f0f6ff; }
+    .date-row:nth-child(odd) { background-color: #fff; }
+    .date-row.is-past { opacity: 0.6; }
+    .date-row.is-override { background-color: #fff3cd !important; }
+    .date-row.is-event { background-color: #d1ecf1 !important; }
+    .date-row.is-today { border-left: 4px solid #0d6efd; font-weight: 600; }
+
+    .date-col { width: 110px; flex-shrink: 0; }
+    .day-col { width: 70px; flex-shrink: 0; color: #6c757d; font-size: 0.875rem; }
+    .name-col { flex: 1; }
+    .phone-col { width: 140px; flex-shrink: 0; color: #6c757d; }
+    .action-col { width: 80px; flex-shrink: 0; text-align: right; }
+    .source-col { width: 100px; flex-shrink: 0; }
+
+    .source-badge { font-size: 0.75rem; }
+
+    @media (max-width: 768px) {
+        .roster-layout { flex-direction: column; height: auto; }
+        .staff-panel { width: 100%; }
+        .phone-col { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-calendar-week"></i> GTYC Friday Night Bar Roster</h4>
+        <button class="btn btn-outline-secondary btn-sm" onclick="openPrintModal()">
+            <i class="bi bi-printer"></i> Print 8-Month Roster
+        </button>
+    </div>
+
+    <div class="roster-layout">
+        <!-- Left panel: Staff list -->
+        <div class="staff-panel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong><i class="bi bi-people"></i> Bar Staff</strong>
+                    <button class="btn btn-sm btn-outline-success" onclick="showAddStaffForm()">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
+                <div class="card-body p-2 staff-list" id="staff-list">
+                    <!-- Staff cards rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Add staff form (hidden by default) -->
+            <div class="card mt-2 d-none" id="add-staff-form">
+                <div class="card-body p-2">
+                    <input type="text" class="form-control form-control-sm mb-1"
+                           id="new-staff-name" placeholder="Name">
+                    <input type="text" class="form-control form-control-sm mb-1"
+                           id="new-staff-phone" placeholder="Phone">
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-success flex-fill" onclick="addStaff()">
+                            <i class="bi bi-check-circle"></i> Add
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="hideAddStaffForm()">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right panel: Date grid -->
+        <div class="dates-panel">
+            <div class="card flex-fill d-flex flex-column">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="shiftDates(-90)">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="shiftDates(-30)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <span class="mx-2 fw-bold" id="date-range-label">Loading...</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="shiftDates(30)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="shiftDates(90)">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </button>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="resetDatesToToday()">
+                        Today
+                    </button>
+                </div>
+                <!-- Date header row -->
+                <div class="px-3 py-1 bg-light border-bottom" style="font-size:0.8rem; font-weight:600;">
+                    <div class="date-row" style="border:none; padding:0;">
+                        <div class="date-col">Date</div>
+                        <div class="day-col">Day</div>
+                        <div class="name-col">On Duty</div>
+                        <div class="phone-col"><i class="bi bi-telephone"></i> Phone</div>
+                        <div class="source-col">Source</div>
+                        <div class="action-col">Action</div>
+                    </div>
+                </div>
+                <div class="dates-grid" id="dates-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Roster Modal -->
+<div class="modal fade" id="printRosterModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-printer"></i> 8-Month Bar Roster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="print-roster-frame" style="width:100%; height:70vh; border:none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('print-roster-frame').contentWindow.print()">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// State
+let currentStartDate = new Date();
+let staffList = [];
+
+// ---- AJAX helpers ----
+async function apiFetch(url, options = {}) {
+    const defaults = {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN,
+        },
+    };
+    const resp = await fetch(url, { ...defaults, ...options });
+    return resp.json();
+}
+
+// ---- Staff management ----
+async function loadStaff() {
+    const data = await apiFetch('/roster/admin/staff/');
+    staffList = data.staff;
+    renderStaffList();
+}
+
+function renderStaffList() {
+    const container = document.getElementById('staff-list');
+    if (staffList.length === 0) {
+        container.innerHTML = '<p class="text-muted p-2">No staff members yet.</p>';
+        return;
+    }
+    container.innerHTML = staffList.map((s, i) => `
+        <div class="card mb-1 staff-card" draggable="true"
+             data-staff-id="${s.id}" data-index="${i}">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <i class="bi bi-grip-vertical text-muted" style="cursor:grab;"></i>
+                <span class="badge bg-secondary">${s.position}</span>
+                <div class="flex-fill">
+                    <div class="fw-semibold" style="font-size:0.9rem;">${escHtml(s.name)}</div>
+                    <div class="text-muted" style="font-size:0.8rem;">
+                        <i class="bi bi-telephone"></i> ${escHtml(s.phone || '—')}
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-primary p-1" onclick="editStaff(${s.id})" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger p-1" onclick="deleteStaff(${s.id})" title="Remove">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    // Drag and drop
+    container.querySelectorAll('.staff-card').forEach(card => {
+        card.addEventListener('dragstart', onDragStart);
+        card.addEventListener('dragover', onDragOver);
+        card.addEventListener('drop', onDrop);
+        card.addEventListener('dragend', onDragEnd);
+        card.addEventListener('dragleave', onDragLeave);
+    });
+}
+
+function showAddStaffForm() {
+    document.getElementById('add-staff-form').classList.remove('d-none');
+    document.getElementById('new-staff-name').focus();
+}
+
+function hideAddStaffForm() {
+    document.getElementById('add-staff-form').classList.add('d-none');
+    document.getElementById('new-staff-name').value = '';
+    document.getElementById('new-staff-phone').value = '';
+}
+
+async function addStaff() {
+    const name = document.getElementById('new-staff-name').value.trim();
+    const phone = document.getElementById('new-staff-phone').value.trim();
+    if (!name) return alert('Name is required');
+
+    await apiFetch('/roster/admin/staff/add/', {
+        method: 'POST',
+        body: JSON.stringify({ name, phone }),
+    });
+
+    hideAddStaffForm();
+    loadStaff();
+    loadDates();
+}
+
+async function editStaff(id) {
+    const staff = staffList.find(s => s.id === id);
+    if (!staff) return;
+
+    const name = prompt('Name:', staff.name);
+    if (name === null) return;
+    const phone = prompt('Phone:', staff.phone);
+    if (phone === null) return;
+
+    await apiFetch(`/roster/admin/staff/${id}/update/`, {
+        method: 'POST',
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+    });
+
+    loadStaff();
+    loadDates();
+}
+
+async function deleteStaff(id) {
+    const staff = staffList.find(s => s.id === id);
+    if (!staff) return;
+    if (!confirm(`Remove ${staff.name} from the rotation?`)) return;
+
+    await apiFetch(`/roster/admin/staff/${id}/delete/`, {
+        method: 'POST',
+    });
+
+    loadStaff();
+    loadDates();
+}
+
+// Drag and drop reordering
+let dragSrcId = null;
+
+function onDragStart(e) {
+    dragSrcId = this.dataset.staffId;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    this.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    const targetId = this.dataset.staffId;
+    if (dragSrcId === targetId) return;
+
+    // Reorder in local array
+    const srcIdx = staffList.findIndex(s => s.id == dragSrcId);
+    const tgtIdx = staffList.findIndex(s => s.id == targetId);
+    const [moved] = staffList.splice(srcIdx, 1);
+    staffList.splice(tgtIdx, 0, moved);
+
+    // Send new order to server
+    const order = staffList.map(s => s.id);
+    apiFetch('/roster/admin/staff/reorder/', {
+        method: 'POST',
+        body: JSON.stringify({ order }),
+    }).then(() => {
+        loadStaff();
+        loadDates();
+    });
+}
+
+function onDragEnd(e) {
+    document.querySelectorAll('.staff-card').forEach(c => {
+        c.classList.remove('dragging', 'drag-over');
+    });
+}
+
+// ---- Dates management ----
+async function loadDates() {
+    const start = formatDate(currentStartDate);
+    const endDate = new Date(currentStartDate);
+    endDate.setDate(endDate.getDate() + 90);
+    const end = formatDate(endDate);
+
+    document.getElementById('date-range-label').textContent =
+        `${formatDisplayDate(currentStartDate)} — ${formatDisplayDate(endDate)}`;
+
+    const data = await apiFetch(`/roster/admin/dates/?start=${start}&end=${end}`);
+    renderDates(data.entries);
+}
+
+function renderDates(entries) {
+    const grid = document.getElementById('dates-grid');
+    const todayStr = formatDate(new Date());
+
+    if (entries.length === 0) {
+        grid.innerHTML = '<p class="text-muted p-3">No roster entries for this period.</p>';
+        return;
+    }
+
+    grid.innerHTML = entries.map(e => {
+        let rowClass = 'date-row';
+        if (e.is_past) rowClass += ' is-past';
+        if (e.is_override) rowClass += ' is-override';
+        if (e.source === 'event') rowClass += ' is-event';
+        if (e.date === todayStr) rowClass += ' is-today';
+
+        let sourceLabel = '';
+        if (e.is_override) {
+            sourceLabel = '<span class="badge bg-warning text-dark source-badge">Override</span>';
+        } else if (e.source === 'event') {
+            sourceLabel = `<span class="badge bg-info source-badge">${escHtml(e.event_title || 'Event')}</span>`;
+        } else {
+            sourceLabel = '<span class="badge bg-light text-dark source-badge">Rotation</span>';
+        }
+
+        let actions = '';
+        if (!e.is_past && e.source === 'rotation') {
+            if (e.is_override) {
+                actions = `<button class="btn btn-sm btn-outline-secondary p-1"
+                            onclick="clearOverride('${e.date}')" title="Revert to rotation">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                          </button>`;
+            } else {
+                actions = `<button class="btn btn-sm btn-outline-warning p-1"
+                            onclick="setOverride('${e.date}')" title="Override">
+                            <i class="bi bi-pencil"></i>
+                          </button>`;
+            }
+        }
+
+        return `
+            <div class="${rowClass}">
+                <div class="date-col">${e.date_display}</div>
+                <div class="day-col">${e.day_name.substring(0, 3)}</div>
+                <div class="name-col">${escHtml(e.staff_name)}</div>
+                <div class="phone-col">${escHtml(e.staff_phone || '')}</div>
+                <div class="source-col">${sourceLabel}</div>
+                <div class="action-col">${actions}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function setOverride(dateStr) {
+    // Show a simple picker using staff list
+    const options = staffList.map(s => `${s.id}: ${s.name}`).join('\n');
+    const choice = prompt(`Override ${dateStr}\nEnter staff ID:\n\n${options}`);
+    if (!choice) return;
+
+    const staffId = parseInt(choice);
+    if (isNaN(staffId)) return alert('Invalid staff ID');
+
+    await apiFetch(`/roster/admin/dates/${dateStr}/override/`, {
+        method: 'POST',
+        body: JSON.stringify({ staff_id: staffId }),
+    });
+
+    loadDates();
+}
+
+async function clearOverride(dateStr) {
+    if (!confirm(`Revert ${dateStr} to rotation?`)) return;
+
+    await apiFetch(`/roster/admin/dates/${dateStr}/clear/`, {
+        method: 'POST',
+    });
+
+    loadDates();
+}
+
+function shiftDates(days) {
+    currentStartDate.setDate(currentStartDate.getDate() + days);
+    loadDates();
+}
+
+function resetDatesToToday() {
+    currentStartDate = new Date();
+    loadDates();
+}
+
+// ---- Helpers ----
+function formatDate(d) {
+    return d.toISOString().split('T')[0];
+}
+
+function formatDisplayDate(d) {
+    return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function escHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ---- Print modal ----
+function openPrintModal() {
+    const frame = document.getElementById('print-roster-frame');
+    frame.src = '{% url "roster:print" %}';
+    const modal = new bootstrap.Modal(document.getElementById('printRosterModal'));
+    modal.show();
+}
+
+// ---- Init ----
+document.addEventListener('DOMContentLoaded', () => {
+    loadStaff();
+    loadDates();
+});
+</script>
+{% endblock %}

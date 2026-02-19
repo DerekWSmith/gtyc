@@ -1,0 +1,4 @@
+Django>=6.0,<7.0
+gunicorn
+whitenoise
+python-dotenv

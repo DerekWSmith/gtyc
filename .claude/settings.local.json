@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3.14:*)",
+      "Bash(pip3.14 install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(/usr/local/var/www/gtyc/.venv/bin/pip install:*)",
+      "Bash(.venv/bin/django-admin startproject:*)",
+      "Bash(/usr/local/var/www/gtyc/.venv/bin/python:*)",
+      "Bash(.venv/bin/python manage.py makemigrations:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(DJANGO_SETTINGS_MODULE=gtyc.settings .venv/bin/python:*)",
+      "Bash(echo:*)",
+      "Bash(source:*)",
+      "Bash(python manage.py:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(python3 -m json.tool:*)",
+      "Bash(pkill:*)",
+      "Bash(sips:*)"
+    ]
+  }
+}

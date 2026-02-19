@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GTYC Bar Roster</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11pt;
+            margin: 0 auto;
+            padding: 0 25mm;
+        }
+
+        /* When inside an iframe (modal), use full width */
+        body.in-iframe {
+            padding: 0 10px;
+            max-width: none;
+        }
+        body.in-iframe .no-print { display: none; }
+
+        .header {
+            text-align: center;
+            background: linear-gradient(to bottom, #c0392b, #e67e22);
+            color: white;
+            padding: 8px 0;
+            margin-bottom: 0;
+        }
+        .header h1 { font-size: 14pt; margin: 0; }
+        .header p { font-size: 10pt; margin: 2px 0 0 0; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #c0392b;
+            color: white;
+            padding: 4px 8px;
+            text-align: left;
+            font-size: 10pt;
+        }
+
+        td {
+            padding: 3px 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 10pt;
+        }
+
+        tr:nth-child(even) { background-color: #e8f0fe; }
+        tr:nth-child(odd) { background-color: #ffffff; }
+
+        tr.is-event { background-color: #d1ecf1 !important; }
+        tr.is-event td:first-child::after {
+            content: ' *';
+            color: #0c5460;
+        }
+
+        .print-date {
+            text-align: right;
+            font-size: 8pt;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        @media print {
+            .no-print { display: none; }
+        }
+
+        .no-print {
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button onclick="window.print()" style="font-size: 14pt; padding: 8px 24px; cursor: pointer;">
+            Print Roster
+        </button>
+    </div>
+
+    <div class="header">
+        <h1>GTYC Bar Roster</h1>
+        <p>Friday Night Bar Hours&nbsp;&nbsp;&nbsp;6:00 PM - 9:00 PM</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">Date</th>
+                <th style="width: 40%;">Name</th>
+                <th style="width: 35%;">Phone</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr class="{% if entry.source == 'event' %}is-event{% endif %}">
+                <td>{{ entry.date|date:"d/m/Y" }}</td>
+                <td>{% for s in entry.staff_members %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                <td>{% for s in entry.staff_members %}{{ s.phone }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p class="print-date">Printed {{ today|date:"d/m/Y" }}</p>
+<script>
+    if (window.self !== window.top) {
+        document.body.classList.add('in-iframe');
+    }
+</script>
+</body>
+</html>

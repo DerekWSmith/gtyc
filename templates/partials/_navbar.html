@@ -1,0 +1,69 @@
+<nav class="navbar navbar-expand-md navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="bi bi-water"></i> GTYC
+        </a>
+
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <!-- Public links -->
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'roster:public' %}">
+                        <i class="bi bi-calendar-week"></i> Bar Roster
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'events:public' %}">
+                        <i class="bi bi-calendar-event"></i> Events
+                    </a>
+                </li>
+
+                {% if user.is_authenticated and user.can_admin %}
+                <!-- Admin links (Events Officer / Secretary only) -->
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="{% url 'roster:admin_page' %}">
+                        <i class="bi bi-gear"></i> Manage Roster
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="{% url 'events:admin_page' %}">
+                        <i class="bi bi-gear"></i> Manage Events
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <!-- Auth links -->
+            <ul class="navbar-nav">
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <span class="nav-link text-light">
+                        <i class="bi bi-person-circle"></i> {{ user.display_name }}
+                        {% if user.title %}
+                        <span class="badge bg-info">{{ user.get_title_display }}</span>
+                        {% elif user.is_committee %}
+                        <span class="badge bg-secondary">Committee</span>
+                        {% endif %}
+                    </span>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'accounts:logout' %}">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'accounts:login' %}">
+                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
