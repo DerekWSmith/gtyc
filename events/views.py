@@ -338,7 +338,17 @@ def api_category_update(request, category_id):
             return JsonResponse({'error': 'A category with this name already exists'}, status=400)
         cat.name = name
     if 'requires_approval' in body:
+        was_required = cat.requires_approval
         cat.requires_approval = body['requires_approval']
+
+        # When switching a category TO requires_approval, mark all upcoming
+        # events in this category as unapproved so they enter the approval queue.
+        if cat.requires_approval and not was_required:
+            from django.utils import timezone as tz
+            Event.objects.filter(
+                category=cat,
+                start_datetime__gte=tz.now(),
+            ).update(is_approved=False)
 
     cat.save()
     return JsonResponse({'success': True})
