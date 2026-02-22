@@ -46,6 +46,10 @@ COMMITTEE_MEMBERS = [
         'first_name': 'Derek', 'last_name': 'Smith',
         'title': '', 'can_admin_club': True, 'is_event_officer': False,
     },
+    {
+        'first_name': 'Shyle', 'last_name': 'Wood',
+        'title': '', 'can_admin_club': False, 'is_event_officer': False,
+    },
 ]
 
 DEFAULT_PASSWORD = 'lake.last.night'

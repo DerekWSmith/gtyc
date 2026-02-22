@@ -9,38 +9,44 @@
     .roster-table tr:nth-child(odd) { background-color: #ffffff; }
     .roster-table tr.is-today { font-weight: 700; border-left: 4px solid #0d6efd; }
     .roster-table tr.is-event { background-color: #d1ecf1 !important; }
-    .roster-table td, .roster-table th { padding: 0.4rem 0.75rem; }
+    .roster-table td, .roster-table th { padding: 0.4rem 0.5rem; }
+    @media (max-width: 576px) {
+        .roster-table { font-size: 0.85rem; }
+        .roster-table td, .roster-table th { padding: 0.35rem 0.4rem; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 700px;">
-    <h3 class="text-center mb-0">GTYC Bar Roster</h3>
-    <p class="text-center text-muted mb-3">Friday Night Bar Hours: 6:00 PM - 9:00 PM</p>
+<div class="container px-2 px-sm-3" style="max-width: 700px;">
+    <h3 class="text-center mb-0 fs-4 fs-md-3">GTYC Bar Roster</h3>
+    <p class="text-center text-muted mb-3" style="font-size: 0.9rem;">Friday Night Bar Hours: 6:00 PM - 9:00 PM</p>
 
     {% if entries %}
-    <table class="table table-sm roster-table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>On Duty</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in entries %}
-            <tr class="{% if entry.date == today %}is-today{% endif %} {% if entry.source == 'event' %}is-event{% endif %}">
-                <td>
-                    {{ entry.date|date:"d/m/Y" }}
-                    <small class="text-muted">({{ entry.date|date:"D" }})</small>
-                    {% if entry.source == 'event' and entry.event %}
-                    <br><small class="text-info">{{ entry.event.title }}</small>
-                    {% endif %}
-                </td>
-                <td>{% for s in entry.staff_members %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-sm roster-table mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>On Duty</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr class="{% if entry.date == today %}is-today{% endif %} {% if entry.source == 'event' %}is-event{% endif %}">
+                    <td class="text-nowrap">
+                        {{ entry.date|date:"d/m/Y" }}
+                        <small class="text-muted">({{ entry.date|date:"D" }})</small>
+                        {% if entry.source == 'event' and entry.event %}
+                        <br><small class="text-info">{{ entry.event.title }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{% for s in entry.staff_members %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <p class="text-muted text-center">No roster entries to display.</p>
     {% endif %}

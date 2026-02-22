@@ -9,11 +9,14 @@
 
 {% block extra_css %}
 <style>
-    /* ---- Layout ---- */
+    /* ==============================================================
+       MOBILE-FIRST LAYOUT
+       Default = phone (stacked, full-width)
+       ============================================================== */
+
+    /* ---- Main container ---- */
     .events-container {
-        max-width: 1400px;
         margin: 0 auto;
-        height: calc(100vh - 100px);
         display: flex;
         flex-direction: column;
     }
@@ -23,21 +26,23 @@
         align-items: center;
         margin-bottom: 0.75rem;
         flex-shrink: 0;
+        gap: 0.5rem;
     }
+    .events-header h4 { font-size: 1.1rem; }
     .events-content {
         display: flex;
-        gap: 1.25rem;
+        flex-direction: column;
+        gap: 1rem;
         flex: 1;
         min-height: 0;
     }
 
-    /* ---- Left sidebar: calendars ---- */
+    /* ---- Sidebar: calendar (full-width on mobile) ---- */
     .events-sidebar {
-        width: 280px;
+        width: 100%;
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;
     }
 
     /* Calendar navigation */
@@ -62,6 +67,11 @@
         cursor: pointer;
         font-size: 0.8rem;
         color: #495057;
+        min-width: 36px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
     .cal-nav-btn:hover { background: #e9ecef; }
 
@@ -80,7 +90,7 @@
         display: grid;
         grid-template-columns: repeat(7, 1fr);
         text-align: center;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         font-weight: 600;
         color: #6c757d;
         margin-bottom: 0.15rem;
@@ -95,11 +105,12 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         border-radius: 4px;
         cursor: pointer;
         position: relative;
         transition: background-color 0.15s;
+        min-height: 36px;
     }
     .calendar-day:hover { background-color: #e9ecef; }
     .calendar-day.other-month { color: #ced4da; }
@@ -125,6 +136,16 @@
     .calendar-day.selected.has-events::after {
         background: #fff;
     }
+
+    /* Hide second calendar on mobile to save space */
+    .calendar-second { display: none; }
+
+    /* On mobile, show calendars side-by-side if both visible (used on wider phones in landscape) */
+    .calendars-container {
+        display: flex;
+        gap: 1rem;
+    }
+    .calendars-container .mini-calendar { flex: 1; }
 
     /* ---- Right panel: filters + event list ---- */
     .events-main {
@@ -153,11 +174,12 @@
         border: 1px solid #dee2e6;
         background: #fff;
         border-radius: 20px;
-        padding: 0.25rem 0.75rem;
+        padding: 0.3rem 0.75rem;
         font-size: 0.8rem;
         cursor: pointer;
         transition: all 0.15s;
         color: #495057;
+        min-height: 36px;
     }
     .filter-btn:hover { background: #e9ecef; }
     .filter-btn.active {
@@ -165,14 +187,15 @@
         color: #fff;
         border-color: #0d6efd;
     }
+    /* Search: full-width on mobile, fixed on desktop */
     .filter-search {
-        margin-left: auto;
         border: 1px solid #dee2e6;
         border-radius: 20px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.8rem;
-        width: 180px;
+        padding: 0.3rem 0.75rem;
+        font-size: 0.85rem;
+        width: 100%;
         outline: none;
+        min-height: 36px;
     }
     .filter-search:focus { border-color: #86b7fe; box-shadow: 0 0 0 0.15rem rgba(13,110,253,.15); }
 
@@ -183,16 +206,18 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+        -webkit-overflow-scrolling: touch;
     }
     .event-item {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.6rem 0.75rem;
+        gap: 0.5rem;
+        padding: 0.6rem 0.5rem;
         border-radius: 6px;
         cursor: pointer;
         transition: background-color 0.15s;
         border: 1px solid transparent;
+        min-height: 52px;
     }
     .event-item:hover { background-color: #f0f0f0; }
     .event-item.active { background-color: #cfe2ff; border-color: #86b7fe; }
@@ -201,11 +226,11 @@
     /* Date badge */
     .event-date-badge {
         text-align: center;
-        min-width: 44px;
+        min-width: 40px;
         flex-shrink: 0;
     }
     .event-date-badge .day {
-        font-size: 1.25rem;
+        font-size: 1.15rem;
         font-weight: 700;
         line-height: 1;
         color: #212529;
@@ -231,11 +256,12 @@
     }
     .event-meta {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.4rem;
         align-items: center;
         font-size: 0.75rem;
         color: #6c757d;
         margin-top: 0.15rem;
+        flex-wrap: wrap;
     }
     .event-type-badge {
         display: inline-block;
@@ -275,23 +301,46 @@
     .form-row-datetime .form-group { flex: 1; }
     .form-row-datetime .time-group { max-width: 120px; }
 
-    /* ---- Responsive ---- */
-    @media (max-width: 768px) {
-        .events-content { flex-direction: column; height: auto; }
-        .events-sidebar { width: 100%; }
-        .events-container { height: auto; }
+    /* ==============================================================
+       TABLET+ (min-width: 768px)
+       Two-column layout with sidebar
+       ============================================================== */
+    @media (min-width: 768px) {
+        .events-container {
+            max-width: 1400px;
+            height: calc(100vh - 100px);
+        }
+        .events-header h4 { font-size: 1.5rem; }
+        .events-content {
+            flex-direction: row;
+            gap: 1.25rem;
+            flex: 1;
+        }
+        .events-sidebar {
+            width: 280px;
+            overflow-y: auto;
+        }
+        .calendar-second { display: block; }
+        .filter-search {
+            margin-left: auto;
+            width: 180px;
+        }
+        .event-item {
+            gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="events-container px-3">
+<div class="events-container px-2 px-sm-3">
     <!-- Header -->
     <div class="events-header">
         <h4 class="mb-0"><i class="bi bi-calendar-event"></i> Manage Events</h4>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary btn-sm" onclick="openCategoriesModal()">
-                <i class="bi bi-tags"></i> Event Types
+                <i class="bi bi-tags"></i><span class="d-none d-sm-inline"> Event Types</span>
             </button>
             <button class="btn btn-success btn-sm" id="btn-add-event" onclick="openCreateModal()">
                 <i class="bi bi-plus-circle"></i> Event
@@ -299,7 +348,7 @@
         </div>
     </div>
 
-    <!-- Two-panel layout -->
+    <!-- Two-panel layout (stacked on mobile, side-by-side on tablet+) -->
     <div class="events-content">
         <!-- LEFT SIDEBAR: Calendars -->
         <aside class="events-sidebar">
@@ -320,8 +369,8 @@
                     <div class="calendar-days" id="calendar-1-days"></div>
                 </div>
 
-                <!-- Month 2 (next month) -->
-                <div class="mini-calendar">
+                <!-- Month 2 (next month) — hidden on mobile -->
+                <div class="mini-calendar calendar-second">
                     <div class="mini-calendar-title" id="calendar-2-title"></div>
                     <div class="calendar-weekdays">
                         <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
@@ -349,10 +398,10 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- Event Modal (Create / Edit)                                   -->
+<!-- Event Modal (Create / Edit) — fullscreen on phones            -->
 <!-- ============================================================ -->
 <div class="modal fade" id="eventModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modal-title">New Event</h5>
@@ -362,11 +411,11 @@
                 <form id="event-form">
                     <!-- Title + Type -->
                     <div class="row mb-3">
-                        <div class="col-8">
+                        <div class="col-12 col-sm-8 mb-2 mb-sm-0">
                             <label class="form-label">Title</label>
                             <input type="text" class="form-control" id="evt-title" required>
                         </div>
-                        <div class="col-4">
+                        <div class="col-12 col-sm-4">
                             <label class="form-label">Type</label>
                             <select class="form-select" id="evt-category">
                                 <option value="">-- Select --</option>
@@ -379,19 +428,19 @@
 
                     <!-- Date/Time with Flatpickr -->
                     <div class="row mb-3">
-                        <div class="col-sm-3">
+                        <div class="col-6 col-md-3 mb-2 mb-md-0">
                             <label class="form-label">Start Date</label>
                             <input type="text" class="form-control" id="evt-start-date" placeholder="Date">
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-6 col-md-3 mb-2 mb-md-0">
                             <label class="form-label">Start Time</label>
                             <input type="text" class="form-control" id="evt-start-time" placeholder="Time">
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-6 col-md-3">
                             <label class="form-label">End Date</label>
                             <input type="text" class="form-control" id="evt-end-date" placeholder="Date">
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-6 col-md-3">
                             <label class="form-label">End Time</label>
                             <input type="text" class="form-control" id="evt-end-time" placeholder="Time">
                         </div>
@@ -399,11 +448,11 @@
 
                     <!-- Contact -->
                     <div class="row mb-3">
-                        <div class="col-6">
+                        <div class="col-12 col-sm-6 mb-2 mb-sm-0">
                             <label class="form-label">Contact Name</label>
                             <input type="text" class="form-control" id="evt-contact-name">
                         </div>
-                        <div class="col-6">
+                        <div class="col-12 col-sm-6">
                             <label class="form-label">Contact Phone</label>
                             <input type="text" class="form-control" id="evt-contact-phone">
                         </div>
@@ -416,7 +465,8 @@
                             {% for s in staff_list %}
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input staff-cb" type="checkbox"
-                                       value="{{ s.id }}" id="staff-{{ s.id }}">
+                                       value="{{ s.id }}" id="staff-{{ s.id }}"
+                                       style="width: 1.15em; height: 1.15em;">
                                 <label class="form-check-label" for="staff-{{ s.id }}">{{ s.name }}</label>
                             </div>
                             {% endfor %}
@@ -435,7 +485,8 @@
                             {% if user.can_approve_events %}
                             <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" role="switch"
-                                       id="approval-switch" onchange="toggleApproval()">
+                                       id="approval-switch" onchange="toggleApproval()"
+                                       style="width: 2.5em; height: 1.25em;">
                                 <label class="form-check-label fw-semibold" for="approval-switch"
                                        id="approval-label">Pending</label>
                             </div>
@@ -464,10 +515,10 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- Event Types Modal                                              -->
+<!-- Event Types Modal — fullscreen on phones                      -->
 <!-- ============================================================ -->
 <div class="modal fade" id="categoriesModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-tags"></i> Event Types</h5>

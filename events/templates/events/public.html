@@ -18,25 +18,26 @@
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 700px;">
+<div class="container px-3" style="max-width: 700px;">
     <h3 class="text-center mb-1"><i class="bi bi-calendar-event"></i> Upcoming Events</h3>
     <p class="text-center text-muted mb-3">George Town Yacht Club</p>
 
     {% if events %}
     <div class="list-group">
         {% for event in events %}
-        <div class="list-group-item event-card {% if event.is_tentative %}tentative{% endif %}">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="fw-semibold event-title">{{ event.title }}</div>
+        <div class="list-group-item event-card {% if event.is_tentative %}tentative{% endif %} px-2 px-sm-3">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="min-w-0">
+                    <div class="fw-semibold event-title text-truncate">{{ event.title }}</div>
                     <small class="text-muted">
                         <i class="bi bi-clock"></i>
                         {{ event.start_datetime|date:"D d M Y" }}
-                        &middot;
+                        <span class="d-none d-sm-inline">&middot;</span>
+                        <br class="d-sm-none">
                         {{ event.start_datetime|date:"g:i A" }} – {{ event.end_datetime|date:"g:i A" }}
                     </small>
                 </div>
-                <span class="badge bg-secondary">{{ event.category_name }}</span>
+                <span class="badge bg-secondary flex-shrink-0">{{ event.category_name }}</span>
             </div>
         </div>
         {% endfor %}

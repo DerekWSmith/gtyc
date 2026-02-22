@@ -18,7 +18,9 @@
       "Bash(python3 -m json.tool:*)",
       "Bash(pkill:*)",
       "Bash(sips:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(DATABASE_URL=\"/Volumes/www/gtyc/gtyc.sqlite3\" .venv/bin/python:*)"
     ]
   }
 }

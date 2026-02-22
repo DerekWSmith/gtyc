@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "django-dev",
+      "runtimeExecutable": "/usr/local/var/www/gtyc/.venv/bin/python",
+      "runtimeArgs": ["manage.py", "runserver", "8000"],
+      "port": 8000
+    }
+  ]
+}
