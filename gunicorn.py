@@ -1,21 +1,30 @@
-# Gunicorn configuration for GTYC on Bertha
+# Gunicorn configuration for GTYC
 #
 # Start with:
-#   cd /usr/local/var/www/gtyc
+#   cd /var/www/gtyc          (Linux Mint server)
+#   cd /usr/local/var/www/gtyc (macOS / Bertha)
 #   gunicorn -c gunicorn.py
+#
+# Or run via systemd:
+#   sudo systemctl start gtyc
+
+import os
 
 # WSGI app
 wsgi_app = "gtyc.wsgi:application"
 
-# Bind to localhost only — Nginx fronts this on :7030
-bind = "127.0.0.1:7030"
+# Bind to localhost only — Cloudflare Tunnel fronts this
+bind = "127.0.0.1:8000"
 
 # Workers — small site, 2 is plenty
 workers = 2
 
+# Detect project root from this file's location
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+
 # Logging
-accesslog = "/usr/local/var/www/gtyc/_logs/gunicorn-access.log"
-errorlog = "/usr/local/var/www/gtyc/_logs/gunicorn-error.log"
+accesslog = os.path.join(_base_dir, "_logs", "gunicorn-access.log")
+errorlog = os.path.join(_base_dir, "_logs", "gunicorn-error.log")
 loglevel = "info"
 
 # Process naming

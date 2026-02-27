@@ -53,15 +53,15 @@ class Command(BaseCommand):
             s.save()
             self.stdout.write(self.style.WARNING(f"Deactivated: {s.name}"))
 
-        # Set anchor: Peter Shields (position 1) was on duty 2025-12-12
+        # Set anchor: Paul Hardy (position 2) was on duty 2025-12-19
         config = RosterConfig.load()
         if config is None:
             RosterConfig.objects.create(
-                anchor_date=datetime.date(2025, 12, 12),
-                anchor_staff_position=1,
+                anchor_date=datetime.date(2025, 12, 19),
+                anchor_staff_position=2,
             )
             self.stdout.write(self.style.SUCCESS(
-                'Created roster config: anchor position 1 on 2025-12-12'
+                'Created roster config: anchor position 2 on 2025-12-19'
             ))
         else:
             self.stdout.write('Roster config already exists')

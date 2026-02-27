@@ -205,7 +205,9 @@
 {% block extra_js %}
 <script>
 // State
+// Start 2 weeks before today
 let currentStartDate = new Date();
+currentStartDate.setDate(currentStartDate.getDate() - 14);
 let staffList = [];
 
 // ---- AJAX helpers ----
@@ -475,6 +477,7 @@ function shiftDates(days) {
 
 function resetDatesToToday() {
     currentStartDate = new Date();
+    currentStartDate.setDate(currentStartDate.getDate() - 14);
     loadDates();
 }
 

@@ -18,8 +18,8 @@ from .services import get_roster_for_range
 def public_roster(request):
     """Public read-only roster — dates + names only, no phone numbers."""
     today = datetime.date.today()
-    # Show from start of current month to 3 months ahead
-    start = today.replace(day=1)
+    # Show from 2 weeks ago to 3 months ahead
+    start = today - datetime.timedelta(days=14)
     end = today + datetime.timedelta(days=90)
 
     entries = get_roster_for_range(start, end)
