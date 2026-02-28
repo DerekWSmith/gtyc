@@ -36,6 +36,13 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if user.is_authenticated and user.can_manage_members %}
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="{% url 'accounts:members_admin' %}">
+                        <i class="bi bi-people"></i> Manage Members
+                    </a>
+                </li>
+                {% endif %}
             </ul>
 
             <!-- Auth links -->

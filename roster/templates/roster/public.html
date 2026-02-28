@@ -8,6 +8,7 @@
     .roster-table tr:nth-child(even) { background-color: #e8f0fe; }
     .roster-table tr:nth-child(odd) { background-color: #ffffff; }
     .roster-table tr.is-today { font-weight: 700; border-left: 4px solid #0d6efd; }
+    .roster-table tr.is-next-friday { font-weight: 700; border-left: 4px solid #198754; }
     .roster-table tr.is-event { background-color: #d1ecf1 !important; }
     .roster-table td, .roster-table th { padding: 0.4rem 0.5rem; }
     @media (max-width: 576px) {
@@ -29,11 +30,12 @@
                 <tr>
                     <th>Date</th>
                     <th>On Duty</th>
+                    <th>Phone</th>
                 </tr>
             </thead>
             <tbody>
                 {% for entry in entries %}
-                <tr class="{% if entry.date == today %}is-today{% endif %} {% if entry.source == 'event' %}is-event{% endif %}">
+                <tr class="{% if entry.date == today %}is-today{% endif %}{% if entry.date == next_friday %} is-next-friday{% endif %} {% if entry.source == 'event' %}is-event{% endif %}">
                     <td class="text-nowrap">
                         {{ entry.date|date:"d/m/Y" }}
                         <small class="text-muted">({{ entry.date|date:"D" }})</small>
@@ -41,7 +43,8 @@
                         <br><small class="text-info">{{ entry.event.title }}</small>
                         {% endif %}
                     </td>
-                    <td>{% for s in entry.staff_members %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                    <td>{% for s in entry.staff_members %}{{ s.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                    <td class="text-nowrap">{% for s in entry.staff_members %}{{ s.phone }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
                 </tr>
                 {% endfor %}
             </tbody>

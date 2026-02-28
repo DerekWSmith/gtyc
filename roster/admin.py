@@ -1,12 +1,5 @@
 from django.contrib import admin
-from .models import StaffMember, RosterDate, RosterConfig
-
-
-@admin.register(StaffMember)
-class StaffMemberAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone', 'position', 'is_active')
-    list_filter = ('is_active',)
-    ordering = ('position',)
+from .models import RosterDate, RosterConfig
 
 
 @admin.register(RosterDate)

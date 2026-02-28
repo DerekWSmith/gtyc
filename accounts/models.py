@@ -21,9 +21,17 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class Role(models.TextChoices):
-    MEMBER = 'member', 'Member'
-    COMMITTEE = 'committee', 'Committee Member'
+class MembershipType(models.TextChoices):
+    NONE = 'none', 'Contact Only'
+    FULL = 'full', 'Full Member'
+    SOCIAL = 'social', 'Social Member'
+    FAMILY = 'family', 'Family Member'
+
+
+class AdminLevel(models.TextChoices):
+    NONE = '', 'None'
+    EVENT_OFFICER = 'event_officer', 'Events Officer'
+    SECRETARY = 'secretary', 'Secretary'
 
 
 class Title(models.TextChoices):
@@ -40,11 +48,27 @@ class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True)
 
-    role = models.CharField(
+    # Membership
+    membership_type = models.CharField(
         max_length=20,
-        choices=Role.choices,
-        default=Role.MEMBER,
+        choices=MembershipType.choices,
+        default=MembershipType.FULL,
     )
+    is_committee = models.BooleanField(
+        default=False,
+        help_text='Is a committee member',
+    )
+
+    # Admin level (controls access)
+    admin_level = models.CharField(
+        max_length=20,
+        choices=AdminLevel.choices,
+        blank=True,
+        default='',
+        help_text='Secretary: full admin. Event Officer: roster + events.',
+    )
+
+    # Honorific title (display only)
     title = models.CharField(
         max_length=20,
         choices=Title.choices,
@@ -52,14 +76,23 @@ class User(AbstractUser):
         default='',
         help_text='Honorary committee title (display only, does not control access)',
     )
-    is_event_officer = models.BooleanField(
+
+    # RSA / Bar rotation
+    is_rsa = models.BooleanField(
         default=False,
-        help_text='Can approve/reject/delete events',
+        help_text='Has RSA certification, can serve alcohol',
     )
-    can_admin_club = models.BooleanField(
+    is_in_rotation = models.BooleanField(
         default=False,
-        help_text='Can administer events and roster',
+        help_text='In the Friday bar rotation (must also have RSA)',
     )
+    rotation_position = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text='Order in the rotation cycle (1-based)',
+    )
+
+    # Contact
     phone = models.CharField(max_length=20, blank=True, default='')
     preferred_name = models.CharField(max_length=100, blank=True, default='')
 
@@ -86,14 +119,16 @@ class User(AbstractUser):
         return self.email
 
     @property
-    def is_committee(self):
-        return self.role == Role.COMMITTEE
-
-    @property
     def can_admin(self):
-        """Can access admin pages (Events Officer or Secretary or explicit flag)."""
-        return self.can_admin_club or self.is_event_officer
+        """Can access admin pages (Secretary or Event Officer)."""
+        return self.admin_level in (AdminLevel.SECRETARY, AdminLevel.EVENT_OFFICER)
 
     @property
     def can_approve_events(self):
-        return self.is_event_officer
+        """Can approve/reject/delete events."""
+        return self.admin_level in (AdminLevel.SECRETARY, AdminLevel.EVENT_OFFICER)
+
+    @property
+    def can_manage_members(self):
+        """Can manage User CRUD (secretary only)."""
+        return self.admin_level == AdminLevel.SECRETARY

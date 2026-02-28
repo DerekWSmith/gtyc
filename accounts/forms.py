@@ -53,7 +53,7 @@ class RegistrationForm(forms.ModelForm):
         user = super().save(commit=False)
         user.email = user.email.lower()
         user.set_password(self.cleaned_data['password1'])
-        user.role = 'member'
+        user.membership_type = 'full'
         if commit:
             user.save()
         return user

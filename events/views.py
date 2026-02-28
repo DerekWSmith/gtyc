@@ -1,6 +1,7 @@
 import json
 import datetime
 
+from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -8,8 +9,10 @@ from django.utils.timezone import localtime
 from django.views.decorators.http import require_POST, require_GET
 
 from accounts.decorators import admin_required, event_officer_required
-from roster.models import StaffMember, RosterDate
+from roster.models import RosterDate
 from .models import Event, EventCategory
+
+User = get_user_model()
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +38,9 @@ def public_events(request):
 @admin_required
 def admin_page(request):
     """Admin events management page."""
-    staff = StaffMember.objects.filter(is_active=True).order_by('position')
+    staff = User.objects.filter(is_rsa=True, is_active=True).order_by(
+        'last_name', 'first_name',
+    )
     categories = EventCategory.objects.filter(is_active=True)
 
     # Pre-load upcoming events for initial render (avoid loading flash)
@@ -104,7 +109,7 @@ def api_event_list(request):
             'end_display': localtime(e.end_datetime).strftime('%H:%M'),
             'contact_name': e.contact_name,
             'contact_phone': e.contact_phone,
-            'bar_staff': [{'id': s.id, 'name': s.name} for s in e.bar_staff.all()],
+            'bar_staff': [{'id': s.id, 'name': s.display_name} for s in e.bar_staff.all()],
             'notes': e.notes,
             'created_by': e.created_by.display_name if e.created_by else '',
         })
@@ -183,10 +188,10 @@ def api_event_create(request):
     )
     event.save()  # save() sets is_approved based on category
 
-    # Assign bar staff
+    # Assign bar staff (from RSA users)
     staff_ids = body.get('bar_staff_ids', [])
     if staff_ids:
-        event.bar_staff.set(StaffMember.objects.filter(pk__in=staff_ids[:4]))
+        event.bar_staff.set(User.objects.filter(pk__in=staff_ids[:4], is_rsa=True))
         _sync_event_roster_dates(event)
 
     return JsonResponse({'success': True, 'id': event.id})
@@ -233,7 +238,7 @@ def api_event_update(request, event_id):
     event.save()
 
     if 'bar_staff_ids' in body:
-        event.bar_staff.set(StaffMember.objects.filter(pk__in=body['bar_staff_ids'][:4]))
+        event.bar_staff.set(User.objects.filter(pk__in=body['bar_staff_ids'][:4], is_rsa=True))
         _sync_event_roster_dates(event)
 
     return JsonResponse({'success': True})
@@ -381,11 +386,11 @@ def _sync_event_roster_dates(event):
     # Remove old assignments for this event
     RosterDate.objects.filter(event=event).delete()
 
-    # Create new ones
-    for staff in event.bar_staff.all():
+    # Create new ones — bar_staff now contains User objects
+    for user in event.bar_staff.all():
         RosterDate.objects.create(
             date=event_date,
-            staff_member=staff,
+            staff_member=user,
             source=RosterDate.Source.EVENT,
             event=event,
             notes=event.title,

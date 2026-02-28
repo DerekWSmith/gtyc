@@ -14,7 +14,7 @@ def _is_api_request(request):
 
 
 def admin_required(view_func):
-    """Require authenticated user with club admin access (Events Officer or Secretary etc.)."""
+    """Require authenticated user with club admin access (Secretary or Event Officer)."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -28,14 +28,28 @@ def admin_required(view_func):
 
 
 def event_officer_required(view_func):
-    """Require authenticated user with event officer permission."""
+    """Require authenticated user who can approve events (Secretary or Event Officer)."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('accounts:login')
         if not request.user.can_approve_events:
             if _is_api_request(request):
-                return JsonResponse({'error': 'Event Officer access required'}, status=403)
+                return JsonResponse({'error': 'Event approval access required'}, status=403)
+            return render(request, '403.html', status=403)
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+def secretary_required(view_func):
+    """Require authenticated user with Secretary admin level (can manage members)."""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('accounts:login')
+        if not request.user.can_manage_members:
+            if _is_api_request(request):
+                return JsonResponse({'error': 'Secretary access required'}, status=403)
             return render(request, '403.html', status=403)
         return view_func(request, *args, **kwargs)
     return wrapper

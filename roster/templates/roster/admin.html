@@ -122,6 +122,14 @@
             <!-- Add staff form (hidden by default) -->
             <div class="card mt-2 d-none" id="add-staff-form">
                 <div class="card-body p-2">
+                    <select class="form-select form-select-sm mb-1" id="add-staff-select">
+                        <option value="">Select RSA member...</option>
+                        {% for u in rsa_users %}
+                        <option value="{{ u.id }}">{{ u.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <hr class="my-1">
+                    <p class="text-muted mb-1" style="font-size:0.75rem;">Or create new contact:</p>
                     <input type="text" class="form-control form-control-sm mb-1"
                            id="new-staff-name" placeholder="Name">
                     <input type="text" class="form-control form-control-sm mb-1"
@@ -271,23 +279,34 @@ function renderStaffList() {
 
 function showAddStaffForm() {
     document.getElementById('add-staff-form').classList.remove('d-none');
-    document.getElementById('new-staff-name').focus();
+    document.getElementById('add-staff-select').focus();
 }
 
 function hideAddStaffForm() {
     document.getElementById('add-staff-form').classList.add('d-none');
+    document.getElementById('add-staff-select').value = '';
     document.getElementById('new-staff-name').value = '';
     document.getElementById('new-staff-phone').value = '';
 }
 
 async function addStaff() {
+    const selectEl = document.getElementById('add-staff-select');
+    const userId = selectEl.value;
     const name = document.getElementById('new-staff-name').value.trim();
     const phone = document.getElementById('new-staff-phone').value.trim();
-    if (!name) return alert('Name is required');
+
+    let payload;
+    if (userId) {
+        payload = { user_id: parseInt(userId) };
+    } else if (name) {
+        payload = { name, phone };
+    } else {
+        return alert('Select an RSA member or enter a name');
+    }
 
     await apiFetch('/roster/admin/staff/add/', {
         method: 'POST',
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify(payload),
     });
 
     hideAddStaffForm();

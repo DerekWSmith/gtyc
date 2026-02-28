@@ -57,12 +57,12 @@ class Event(models.Model):
     contact_name = models.CharField(max_length=100, blank=True, default='')
     contact_phone = models.CharField(max_length=20, blank=True, default='')
 
-    # Bar staff assigned (1-4, drawn from StaffMember)
+    # Bar staff assigned (1-4, RSA-certified users)
     bar_staff = models.ManyToManyField(
-        'roster.StaffMember',
+        settings.AUTH_USER_MODEL,
         blank=True,
-        related_name='events',
-        help_text='1-4 bar staff assigned to this event',
+        related_name='bar_events',
+        help_text='1-4 RSA-certified bar staff assigned to this event',
     )
 
     notes = models.TextField(blank=True, default='')

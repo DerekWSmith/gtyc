@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Members — GTYC{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==============================================================
+       MOBILE-FIRST LAYOUT
+       ============================================================== */
+
+    .members-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .members-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .members-header h4 { margin: 0; font-size: 1.1rem; }
+
+    /* Search + filters */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+    .filter-pill {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+        transition: background-color 0.15s;
+    }
+    .filter-pill:hover { background-color: #e9ecef; }
+    .filter-pill.active { background-color: #0d6efd; color: #fff; border-color: #0d6efd; }
+
+    /* Member list */
+    .member-list { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    .member-card {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+        min-height: 48px;
+        cursor: pointer;
+        transition: background-color 0.15s;
+        gap: 0.5rem;
+    }
+    .member-card:hover { background-color: #f8f9fa; }
+    .member-card:nth-child(even) { background-color: #f0f6ff; }
+    .member-card:nth-child(even):hover { background-color: #e4edfc; }
+    .member-card.inactive { opacity: 0.5; }
+
+    .member-name { font-size: 0.9rem; font-weight: 500; width: 220px; flex-shrink: 0; }
+    .member-name small { display: block; color: #6c757d; font-weight: 400; font-size: 0.75rem; }
+    .member-phone { display: none; color: #6c757d; font-size: 0.8rem; flex-shrink: 0; width: 130px; }
+    .member-badges { display: flex; gap: 0.25rem; flex-wrap: wrap; flex-shrink: 0; margin-left: auto; justify-content: flex-end; }
+    .member-badges .badge { font-size: 0.65rem; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #6c757d; }
+
+    /* ==============================================================
+       TABLET+ (768px)
+       ============================================================== */
+    @media (min-width: 768px) {
+        .members-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .members-header h4 { font-size: 1.5rem; }
+
+        .member-list { max-height: calc(100vh - 260px); }
+
+        .member-phone { display: block; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-sm-3">
+    <div class="members-container">
+
+        <!-- Header -->
+        <div class="members-header mb-3">
+            <h4><i class="bi bi-people"></i> Manage Members</h4>
+            <button class="btn btn-primary btn-sm" onclick="openAddModal()"
+                    style="min-height: 36px;">
+                <i class="bi bi-plus-circle"></i> Add Member
+            </button>
+        </div>
+
+        <!-- Search + Filters -->
+        <div class="card mb-3">
+            <div class="card-body p-2">
+                <input type="text" class="form-control form-control-sm mb-2"
+                       id="search-input" placeholder="Search by name or email..."
+                       oninput="debounceLoad()">
+                <div class="filter-bar">
+                    <span class="filter-pill active" data-filter="all" onclick="toggleFilter(this)">All</span>
+                    <span class="filter-pill" data-filter="committee" onclick="toggleFilter(this)">Committee</span>
+                    <span class="filter-pill" data-filter="rsa" onclick="toggleFilter(this)">RSA</span>
+                    <span class="filter-pill" data-filter="rotation" onclick="toggleFilter(this)">Rotation</span>
+                    <span class="filter-pill" data-filter="inactive" onclick="toggleFilter(this)">Show Inactive</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member list -->
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong id="member-count">Members</strong>
+            </div>
+            <div class="member-list" id="member-list">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal fade" id="memberModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+
+                <!-- Name row -->
+                <div class="row mb-3">
+                    <div class="col-12 col-sm-4 mb-2 mb-sm-0">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="edit-first-name">
+                    </div>
+                    <div class="col-12 col-sm-4 mb-2 mb-sm-0">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="edit-last-name">
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label">Preferred Name</label>
+                        <input type="text" class="form-control" id="edit-preferred-name"
+                               placeholder="Optional">
+                    </div>
+                </div>
+
+                <!-- Email + Phone -->
+                <div class="row mb-3">
+                    <div class="col-12 col-sm-6 mb-2 mb-sm-0">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit-email">
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" id="edit-phone" placeholder="Optional">
+                    </div>
+                </div>
+
+                <!-- Membership + Title -->
+                <div class="row mb-3">
+                    <div class="col-12 col-sm-4 mb-2 mb-sm-0">
+                        <label class="form-label">Membership</label>
+                        <select class="form-select" id="edit-membership">
+                            {% for value, label in membership_types %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-4 mb-2 mb-sm-0">
+                        <label class="form-label">Admin Level</label>
+                        <select class="form-select" id="edit-admin-level">
+                            {% for value, label in admin_levels %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label">Title (Honorific)</label>
+                        <select class="form-select" id="edit-title">
+                            <option value="">— None —</option>
+                            {% for value, label in titles %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="row mb-3">
+                    <div class="col-6 col-sm-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit-committee"
+                                   style="width: 1.15em; height: 1.15em;">
+                            <label class="form-check-label" for="edit-committee">Committee</label>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit-rsa"
+                                   style="width: 1.15em; height: 1.15em;">
+                            <label class="form-check-label" for="edit-rsa">RSA</label>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit-rotation"
+                                   style="width: 1.15em; height: 1.15em;">
+                            <label class="form-check-label" for="edit-rotation">In Rotation</label>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit-active" checked
+                                   style="width: 1.15em; height: 1.15em;">
+                            <label class="form-check-label" for="edit-active">Active</label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveMember()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const modal = new bootstrap.Modal(document.getElementById('memberModal'));
+
+let members = [];
+let activeFilters = new Set(['all']);
+let debounceTimer = null;
+
+// ── API helper ──────────────────────────────────────────────
+async function apiFetch(url, options = {}) {
+    const defaults = {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN,
+        },
+    };
+    const resp = await fetch(url, { ...defaults, ...options });
+    return resp.json();
+}
+
+// ── Load members ────────────────────────────────────────────
+function debounceLoad() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(loadMembers, 300);
+}
+
+async function loadMembers() {
+    const search = document.getElementById('search-input').value.trim();
+    let url = '{% url "accounts:api_member_list" %}?';
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (activeFilters.has('committee')) url += 'committee=true&';
+    if (activeFilters.has('rsa')) url += 'rsa=true&';
+    if (activeFilters.has('rotation')) url += 'rotation=true&';
+    if (activeFilters.has('inactive')) url += 'inactive=true&';
+
+    const data = await apiFetch(url);
+    members = data.members || [];
+    renderMembers();
+}
+
+// ── Render ──────────────────────────────────────────────────
+function renderMembers() {
+    const list = document.getElementById('member-list');
+    const countEl = document.getElementById('member-count');
+    countEl.textContent = `${members.length} Member${members.length !== 1 ? 's' : ''}`;
+
+    if (members.length === 0) {
+        list.innerHTML = '<div class="empty-state">No members found</div>';
+        return;
+    }
+
+    list.innerHTML = members.map(m => {
+        // Badge order (left→right): Secretary, Events Officer, Rotation, RSA, Committee, Member
+        const badges = [];
+        if (m.admin_level === 'secretary') badges.push('<span class="badge bg-warning text-dark">Secretary</span>');
+        if (m.admin_level === 'event_officer') badges.push('<span class="badge bg-warning text-dark">Events Officer</span>');
+        if (m.is_in_rotation) badges.push('<span class="badge bg-dark">Roster</span>');
+        if (m.is_rsa) badges.push('<span class="badge bg-success">RSA</span>');
+        if (m.is_committee) badges.push('<span class="badge bg-secondary">Committee</span>');
+        if (m.membership_type && m.membership_type !== 'none') {
+            badges.push(`<span class="badge bg-primary">${m.membership_display}</span>`);
+        }
+        if (m.membership_type === 'none') {
+            badges.push('<span class="badge bg-light text-dark">Contact</span>');
+        }
+        if (!m.is_active) badges.push('<span class="badge bg-danger">Inactive</span>');
+
+        return `
+            <div class="member-card ${m.is_active ? '' : 'inactive'}"
+                 onclick="openEditModal(${m.id})">
+                <div class="member-name">
+                    ${escHtml(m.display_name)}
+                    <small>${escHtml(m.email)}</small>
+                </div>
+                <div class="member-phone">${escHtml(m.phone || '')}</div>
+                <div class="member-badges">${badges.join('')}</div>
+            </div>`;
+    }).join('');
+}
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+// ── Filters ─────────────────────────────────────────────────
+function toggleFilter(el) {
+    const filter = el.dataset.filter;
+    if (filter === 'all') {
+        activeFilters = new Set(['all']);
+    } else {
+        activeFilters.delete('all');
+        if (activeFilters.has(filter)) {
+            activeFilters.delete(filter);
+        } else {
+            activeFilters.add(filter);
+        }
+        if (activeFilters.size === 0) activeFilters.add('all');
+    }
+    // Update pill styling
+    document.querySelectorAll('.filter-pill').forEach(p => {
+        p.classList.toggle('active', activeFilters.has(p.dataset.filter));
+    });
+    loadMembers();
+}
+
+// ── Modal ───────────────────────────────────────────────────
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add Member';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('edit-first-name').value = '';
+    document.getElementById('edit-last-name').value = '';
+    document.getElementById('edit-preferred-name').value = '';
+    document.getElementById('edit-email').value = '';
+    document.getElementById('edit-phone').value = '';
+    document.getElementById('edit-membership').value = 'full';
+    document.getElementById('edit-admin-level').value = '';
+    document.getElementById('edit-title').value = '';
+    document.getElementById('edit-committee').checked = false;
+    document.getElementById('edit-rsa').checked = false;
+    document.getElementById('edit-rotation').checked = false;
+    document.getElementById('edit-active').checked = true;
+    modal.show();
+}
+
+function openEditModal(id) {
+    const m = members.find(x => x.id === id);
+    if (!m) return;
+    document.getElementById('modalTitle').textContent = 'Edit Member';
+    document.getElementById('edit-id').value = m.id;
+    document.getElementById('edit-first-name').value = m.first_name;
+    document.getElementById('edit-last-name').value = m.last_name;
+    document.getElementById('edit-preferred-name').value = m.preferred_name;
+    document.getElementById('edit-email').value = m.email;
+    document.getElementById('edit-phone').value = m.phone;
+    document.getElementById('edit-membership').value = m.membership_type;
+    document.getElementById('edit-admin-level').value = m.admin_level;
+    document.getElementById('edit-title').value = m.title;
+    document.getElementById('edit-committee').checked = m.is_committee;
+    document.getElementById('edit-rsa').checked = m.is_rsa;
+    document.getElementById('edit-rotation').checked = m.is_in_rotation;
+    document.getElementById('edit-active').checked = m.is_active;
+    modal.show();
+}
+
+async function saveMember() {
+    const id = document.getElementById('edit-id').value;
+    const payload = {
+        first_name: document.getElementById('edit-first-name').value.trim(),
+        last_name: document.getElementById('edit-last-name').value.trim(),
+        preferred_name: document.getElementById('edit-preferred-name').value.trim(),
+        email: document.getElementById('edit-email').value.trim(),
+        phone: document.getElementById('edit-phone').value.trim(),
+        membership_type: document.getElementById('edit-membership').value,
+        admin_level: document.getElementById('edit-admin-level').value,
+        title: document.getElementById('edit-title').value,
+        is_committee: document.getElementById('edit-committee').checked,
+        is_rsa: document.getElementById('edit-rsa').checked,
+        is_in_rotation: document.getElementById('edit-rotation').checked,
+        is_active: document.getElementById('edit-active').checked,
+    };
+
+    let url, method;
+    if (id) {
+        url = `{% url "accounts:api_member_list" %}`.replace('api/list/', `api/${id}/update/`);
+    } else {
+        url = '{% url "accounts:api_member_create" %}';
+    }
+
+    const result = await apiFetch(url, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
+    if (result.error) {
+        alert(result.error);
+        return;
+    }
+
+    modal.hide();
+    loadMembers();
+}
+
+// ── Init ────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadMembers);
+</script>
+{% endblock %}

@@ -102,7 +102,7 @@
             {% for entry in entries %}
             <tr class="{% if entry.source == 'event' %}is-event{% endif %}">
                 <td>{{ entry.date|date:"d/m/Y" }}</td>
-                <td>{% for s in entry.staff_members %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                <td>{% for s in entry.staff_members %}{{ s.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
                 <td>{% for s in entry.staff_members %}{{ s.phone }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
             </tr>
             {% endfor %}

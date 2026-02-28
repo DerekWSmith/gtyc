@@ -1,50 +1,26 @@
+from django.conf import settings
 from django.db import models
-
-
-class StaffMember(models.Model):
-    """A bar staff member in the rotation.
-
-    NOT linked to User — bar staff are often non-members who won't log in.
-    The 'position' field defines the rotation order.
-    """
-    name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=20, blank=True, default='')
-    position = models.PositiveIntegerField(
-        help_text='Order in the rotation cycle (1-based)',
-    )
-    is_active = models.BooleanField(
-        default=True,
-        help_text='Inactive staff are excluded from rotation but kept for history',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'roster_staff'
-        ordering = ['position']
-
-    def __str__(self):
-        return f"{self.name} (pos {self.position})"
 
 
 class RosterDate(models.Model):
     """A specific date assignment on the roster.
 
-    Two sources:
-    - 'rotation': A manual override of a Friday's auto-rotation assignment.
+    Sources:
+    - 'rotation': A Friday rotation assignment (auto-computed or manual override).
     - 'event': A bar staff assignment from a special event.
 
-    For regular Fridays WITHOUT an override, the rotation algorithm computes
-    the assignment on-the-fly — no RosterDate row exists.
+    Every Friday has a stored RosterDate row. The is_override flag distinguishes
+    auto-computed entries (regenerated on staff changes) from manual overrides
+    (preserved during regeneration). Past entries are never recalculated.
     """
 
     class Source(models.TextChoices):
-        ROTATION = 'rotation', 'Friday Rotation Override'
+        ROTATION = 'rotation', 'Rotation'
         EVENT = 'event', 'Special Event'
 
     date = models.DateField(db_index=True)
     staff_member = models.ForeignKey(
-        StaffMember,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='roster_dates',
     )
@@ -52,6 +28,10 @@ class RosterDate(models.Model):
         max_length=20,
         choices=Source.choices,
         default=Source.ROTATION,
+    )
+    is_override = models.BooleanField(
+        default=False,
+        help_text='True for manual admin overrides, False for auto-computed',
     )
     event = models.ForeignKey(
         'events.Event',
@@ -72,7 +52,7 @@ class RosterDate(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.date} — {self.staff_member.name} ({self.get_source_display()})"
+        return f"{self.date} — {self.staff_member.display_name} ({self.get_source_display()})"
 
 
 class RosterConfig(models.Model):

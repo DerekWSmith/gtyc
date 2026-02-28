@@ -1,54 +1,54 @@
 """
-Seed initial users: superuser + 8 committee members with titles and permissions.
+Seed initial users: superuser + committee members with titles and permissions.
 
-If a user already exists (by email), update their title and permission flags.
+If a user already exists (by email), update their fields.
 If not, create them.
 """
 from django.core.management.base import BaseCommand
-from accounts.models import User, Role, Title
+from accounts.models import User, AdminLevel, Title
 
 
-# The 8 committee members
+# Committee members
 COMMITTEE_MEMBERS = [
     {
         'first_name': 'Tanya', 'last_name': 'Flanagan',
-        'title': '', 'can_admin_club': False, 'is_event_officer': False,
+        'title': '', 'admin_level': '',
     },
     {
         'first_name': 'Tim', 'last_name': 'Barrenger',
-        'title': Title.TREASURER, 'can_admin_club': False, 'is_event_officer': False,
+        'title': Title.TREASURER, 'admin_level': '',
     },
     {
         'first_name': 'Matt', 'last_name': 'Potito',
-        'title': Title.COMMODORE, 'can_admin_club': False, 'is_event_officer': False,
+        'title': Title.COMMODORE, 'admin_level': '',
     },
     {
         'first_name': 'Geoff', 'last_name': 'Coogan',
-        'title': '', 'can_admin_club': False, 'is_event_officer': False,
+        'title': '', 'admin_level': '',
     },
     {
         'first_name': 'Paul', 'last_name': 'Hardy',
-        'title': Title.SECRETARY, 'can_admin_club': True, 'is_event_officer': False,
+        'title': Title.SECRETARY, 'admin_level': AdminLevel.SECRETARY,
     },
     {
         'first_name': 'Dick', 'last_name': 'Woolcock',
-        'title': '', 'can_admin_club': False, 'is_event_officer': False,
+        'title': '', 'admin_level': '',
     },
     {
         'first_name': 'Graeme', 'last_name': 'Butcher',
-        'title': '', 'can_admin_club': False, 'is_event_officer': False,
+        'title': '', 'admin_level': '',
     },
     {
         'first_name': 'Peter', 'last_name': 'Shields',
-        'title': Title.EVENTS_OFFICER, 'can_admin_club': True, 'is_event_officer': True,
+        'title': Title.EVENTS_OFFICER, 'admin_level': AdminLevel.EVENT_OFFICER,
     },
     {
         'first_name': 'Derek', 'last_name': 'Smith',
-        'title': '', 'can_admin_club': True, 'is_event_officer': False,
+        'title': '', 'admin_level': AdminLevel.SECRETARY,
     },
     {
         'first_name': 'Shyle', 'last_name': 'Wood',
-        'title': '', 'can_admin_club': False, 'is_event_officer': False,
+        'title': '', 'admin_level': '',
     },
 ]
 
@@ -56,7 +56,7 @@ DEFAULT_PASSWORD = 'lake.last.night'
 
 
 class Command(BaseCommand):
-    help = 'Create/update initial users: superuser + 8 committee members with titles'
+    help = 'Create/update initial users: superuser + committee members with titles'
 
     def handle(self, *args, **options):
         # Create or update superuser
@@ -65,10 +65,10 @@ class Command(BaseCommand):
             defaults={
                 'first_name': 'Admin',
                 'last_name': 'GTYC',
-                'role': Role.COMMITTEE,
+                'is_committee': True,
                 'title': Title.EVENTS_OFFICER,
-                'can_admin_club': True,
-                'is_event_officer': True,
+                'admin_level': AdminLevel.SECRETARY,
+                'membership_type': 'full',
                 'is_staff': True,
                 'is_superuser': True,
             },
@@ -78,10 +78,9 @@ class Command(BaseCommand):
             admin.save()
             self.stdout.write(self.style.SUCCESS('Created superuser: admin@gtyc.com'))
         else:
-            # Update permissions on existing admin
             admin.title = Title.EVENTS_OFFICER
-            admin.can_admin_club = True
-            admin.is_event_officer = True
+            admin.admin_level = AdminLevel.SECRETARY
+            admin.is_committee = True
             admin.save()
             self.stdout.write('Updated superuser: admin@gtyc.com')
 
@@ -93,10 +92,10 @@ class Command(BaseCommand):
                 defaults={
                     'first_name': person['first_name'],
                     'last_name': person['last_name'],
-                    'role': Role.COMMITTEE,
+                    'is_committee': True,
+                    'membership_type': 'full',
                     'title': person['title'],
-                    'can_admin_club': person['can_admin_club'],
-                    'is_event_officer': person['is_event_officer'],
+                    'admin_level': person['admin_level'],
                 },
             )
             if created:
@@ -104,10 +103,9 @@ class Command(BaseCommand):
                 user.save()
                 action = 'Created'
             else:
-                # Update title and permissions on existing user
                 user.title = person['title']
-                user.can_admin_club = person['can_admin_club']
-                user.is_event_officer = person['is_event_officer']
+                user.admin_level = person['admin_level']
+                user.is_committee = True
                 user.first_name = person['first_name']
                 user.last_name = person['last_name']
                 user.save()
@@ -115,10 +113,8 @@ class Command(BaseCommand):
 
             title_display = person['title'] or 'no title'
             flags = []
-            if person['can_admin_club']:
-                flags.append('admin')
-            if person['is_event_officer']:
-                flags.append('event officer')
+            if person['admin_level']:
+                flags.append(person['admin_level'])
             flags_str = f" [{', '.join(flags)}]" if flags else ''
 
             self.stdout.write(self.style.SUCCESS(

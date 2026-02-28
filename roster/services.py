@@ -1,20 +1,19 @@
 """
 Roster rotation algorithm.
 
-The rotation is computed on-the-fly from an anchor point. Only manual
-overrides and event assignments are stored in the database.
+Every Friday has a stored RosterDate row in the database. The is_override
+flag distinguishes auto-computed entries from manual admin overrides.
 
-KEY BEHAVIOUR: Manual overrides REPLACE the rostered person for that
-week only. The rotation continues unchanged — nobody's turn is
-shifted or lost, the override just substitutes one person for one week.
+On staff changes (reorder/add/remove), regenerate_future_roster() deletes
+future auto entries and recomputes them. Past entries are NEVER recalculated.
 
-Example with staff A→B→C→D:
-  Wk1=A (rotation), override Wk2=X → Wk3=C, Wk4=D, Wk5=A, Wk6=B...
-  (B's rotation slot was overridden by X, but C follows B as normal)
+Manual overrides are preserved during regeneration. The underlying rotation
+continues unchanged — an override just substitutes one person for one week.
 """
 
 import datetime
-from .models import StaffMember, RosterDate, RosterConfig
+from django.contrib.auth import get_user_model
+from .models import RosterDate, RosterConfig
 
 
 def get_fridays_in_range(start_date, end_date):
@@ -36,31 +35,100 @@ def fridays_between(date_a, date_b):
     return delta // 7
 
 
+def compute_rotation_for_date(config, active_staff, friday):
+    """Compute which staff member is on duty for a given Friday.
+
+    Returns the User object for the rotation slot, ignoring overrides.
+    """
+    staff_count = len(active_staff)
+    if staff_count == 0 or not config:
+        return None
+    anchor_index = config.anchor_staff_position - 1
+    weeks = fridays_between(config.anchor_date, friday)
+    idx = (anchor_index + weeks) % staff_count
+    return active_staff[idx]
+
+
+def regenerate_future_roster():
+    """Delete future auto entries and recompute from the anchor.
+
+    Called after any staff change (reorder, add, remove).
+    Past entries are never touched — only dates >= today are regenerated.
+    """
+    User = get_user_model()
+    config = RosterConfig.load()
+    if not config:
+        return
+
+    active_staff = list(
+        User.objects.filter(is_in_rotation=True, is_active=True)
+        .order_by('rotation_position')
+    )
+    if not active_staff:
+        return
+
+    today = datetime.date.today()
+    end = today + datetime.timedelta(days=240)  # ~8 months
+
+    # Delete future auto entries (preserve overrides)
+    RosterDate.objects.filter(
+        date__gte=today,
+        source=RosterDate.Source.ROTATION,
+        is_override=False,
+    ).delete()
+
+    # Get future dates that have manual overrides (skip these)
+    overridden = set(
+        RosterDate.objects.filter(
+            date__gte=today,
+            source=RosterDate.Source.ROTATION,
+            is_override=True,
+        ).values_list('date', flat=True)
+    )
+
+    # Compute and store new auto entries
+    fridays = get_fridays_in_range(today, end)
+    to_create = []
+    for friday in fridays:
+        if friday in overridden:
+            continue
+        person = compute_rotation_for_date(config, active_staff, friday)
+        if person:
+            to_create.append(RosterDate(
+                date=friday,
+                staff_member=person,
+                source=RosterDate.Source.ROTATION,
+                is_override=False,
+            ))
+
+    if to_create:
+        RosterDate.objects.bulk_create(to_create)
+
+
 def get_roster_for_range(start_date, end_date):
     """
-    Compute the full roster for a date range.
+    Get the full roster for a date range.
 
     Returns a list of dicts, sorted by date:
         {
             'date': date,
-            'staff_members': [StaffMember, ...],
+            'staff_members': [User, ...],
             'source': 'rotation' | 'event',
             'is_override': bool,
             'event': Event or None,
             'notes': str,
         }
 
-    Rotation entries always have exactly one staff member.
-    Event entries may have multiple (grouped by date + event).
-
-    The list merges:
-    1. Friday rotation assignments (with override handling)
-    2. Special event bar staff assignments (grouped by event)
+    Uses stored RosterDate entries. Falls back to on-the-fly computation
+    for any Friday without a stored entry (e.g., dates outside stored range).
     """
+    User = get_user_model()
     active_staff = list(
-        StaffMember.objects.filter(is_active=True).order_by('position')
+        User.objects.filter(
+            is_in_rotation=True,
+            is_active=True,
+        ).order_by('rotation_position')
     )
-    staff_count = len(active_staff)
 
     config = RosterConfig.load()
 
@@ -72,45 +140,39 @@ def get_roster_for_range(start_date, end_date):
         ).select_related('staff_member', 'event')
     )
 
-    # Index overrides by date for quick lookup
-    overrides_by_date = {}
+    # Index rotation entries by date (override takes priority over auto)
+    rotation_by_date = {}
     event_entries = []
     for rd in stored_dates:
         if rd.source == RosterDate.Source.ROTATION:
-            overrides_by_date[rd.date] = rd
+            # Override wins if both exist for same date
+            if rd.is_override or rd.date not in rotation_by_date:
+                rotation_by_date[rd.date] = rd
         elif rd.source == RosterDate.Source.EVENT:
             event_entries.append(rd)
 
     entries = []
 
-    # 1. Friday rotation — walk forward, respecting overrides
-    if staff_count > 0 and config:
-        fridays = get_fridays_in_range(start_date, end_date)
-
-        # Since overrides don't shift the rotation, we can calculate the
-        # rotation index for any Friday directly from the anchor — no need
-        # to walk from the anchor counting overrides.
-        anchor_index = config.anchor_staff_position - 1  # 0-based
-
-        for friday in fridays:
-            if friday in overrides_by_date:
-                # Override — substitute this week only, rotation unaffected
-                rd = overrides_by_date[friday]
+    # 1. Friday rotation — use stored entries, fallback to on-the-fly
+    fridays = get_fridays_in_range(start_date, end_date)
+    for friday in fridays:
+        if friday in rotation_by_date:
+            rd = rotation_by_date[friday]
+            entries.append({
+                'date': friday,
+                'staff_members': [rd.staff_member],
+                'source': 'rotation',
+                'is_override': rd.is_override,
+                'event': None,
+                'notes': rd.notes,
+            })
+        else:
+            # Fallback: compute on-the-fly for dates outside stored range
+            person = compute_rotation_for_date(config, active_staff, friday)
+            if person:
                 entries.append({
                     'date': friday,
-                    'staff_members': [rd.staff_member],
-                    'source': 'rotation',
-                    'is_override': True,
-                    'event': None,
-                    'notes': rd.notes,
-                })
-            else:
-                # Normal rotation — compute index directly from anchor
-                weeks_from_anchor = fridays_between(config.anchor_date, friday)
-                rotation_index = (anchor_index + weeks_from_anchor) % staff_count
-                entries.append({
-                    'date': friday,
-                    'staff_members': [active_staff[rotation_index]],
+                    'staff_members': [person],
                     'source': 'rotation',
                     'is_override': False,
                     'event': None,
