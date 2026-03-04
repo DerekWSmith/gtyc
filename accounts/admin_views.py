@@ -39,7 +39,11 @@ def api_member_list(request):
 
     membership = request.GET.get('membership')
     if membership:
-        qs = qs.filter(membership_type=membership)
+        types = [t.strip() for t in membership.split(',') if t.strip()]
+        if len(types) == 1:
+            qs = qs.filter(membership_type=types[0])
+        elif types:
+            qs = qs.filter(membership_type__in=types)
 
     if request.GET.get('committee') == 'true':
         qs = qs.filter(is_committee=True)

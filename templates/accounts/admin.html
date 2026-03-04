@@ -107,6 +107,9 @@
                     <span class="filter-pill" data-filter="committee" onclick="toggleFilter(this)">Committee</span>
                     <span class="filter-pill" data-filter="rsa" onclick="toggleFilter(this)">RSA</span>
                     <span class="filter-pill" data-filter="rotation" onclick="toggleFilter(this)">Rotation</span>
+                    <span class="filter-pill" data-filter="contact" onclick="toggleFilter(this)">Contact Only</span>
+                    <span class="filter-pill" data-filter="social" onclick="toggleFilter(this)">Social</span>
+                    <span class="filter-pill" data-filter="family" onclick="toggleFilter(this)">Family</span>
                     <span class="filter-pill" data-filter="inactive" onclick="toggleFilter(this)">Show Inactive</span>
                 </div>
             </div>
@@ -270,6 +273,12 @@ async function loadMembers() {
     if (activeFilters.has('rsa')) url += 'rsa=true&';
     if (activeFilters.has('rotation')) url += 'rotation=true&';
     if (activeFilters.has('inactive')) url += 'inactive=true&';
+    // Membership type filters
+    const membershipFilters = [];
+    if (activeFilters.has('contact')) membershipFilters.push('none');
+    if (activeFilters.has('social')) membershipFilters.push('social');
+    if (activeFilters.has('family')) membershipFilters.push('family');
+    if (membershipFilters.length) url += `membership=${membershipFilters.join(',')}&`;
 
     const data = await apiFetch(url);
     members = data.members || [];

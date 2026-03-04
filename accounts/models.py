@@ -120,15 +120,15 @@ class User(AbstractUser):
 
     @property
     def can_admin(self):
-        """Can access admin pages (Secretary or Event Officer)."""
-        return self.admin_level in (AdminLevel.SECRETARY, AdminLevel.EVENT_OFFICER)
+        """Can access admin pages (Secretary, Event Officer, or superuser)."""
+        return self.is_superuser or self.admin_level in (AdminLevel.SECRETARY, AdminLevel.EVENT_OFFICER)
 
     @property
     def can_approve_events(self):
         """Can approve/reject/delete events."""
-        return self.admin_level in (AdminLevel.SECRETARY, AdminLevel.EVENT_OFFICER)
+        return self.is_superuser or self.admin_level in (AdminLevel.SECRETARY, AdminLevel.EVENT_OFFICER)
 
     @property
     def can_manage_members(self):
-        """Can manage User CRUD (secretary only)."""
-        return self.admin_level == AdminLevel.SECRETARY
+        """Can manage User CRUD (secretary or superuser)."""
+        return self.is_superuser or self.admin_level == AdminLevel.SECRETARY

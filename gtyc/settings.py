@@ -17,6 +17,7 @@ ALLOWED_HOSTS = ['*']
 # Trusted origins for CSRF — Cloudflare tunnel terminates TLS
 CSRF_TRUSTED_ORIGINS = [
     'https://gtyc.harmonyfactory.com',
+    'https://gtyc.share.zrok.io',
     'http://127.0.0.1:8000',
     'http://localhost:8000',
 ]

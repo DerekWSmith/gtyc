@@ -49,11 +49,12 @@ def admin_page(request):
         start_datetime__gte=now,
     ).select_related('category').prefetch_related('bar_staff').order_by('start_datetime')
 
-    # Event dates for calendar dot indicators (next 12 months)
+    # Event dates for calendar dot indicators (12 months back + 12 months ahead)
+    start_window = now - datetime.timedelta(days=365)
     end_window = now + datetime.timedelta(days=365)
     event_dates = list(
         Event.objects.filter(
-            start_datetime__gte=now,
+            start_datetime__gte=start_window,
             start_datetime__lte=end_window,
         ).values_list('start_datetime', flat=True)
     )
@@ -84,13 +85,25 @@ def api_event_list(request):
 
     qs = Event.objects.all().select_related('category').order_by('start_datetime')
 
+    # Allow caller to specify a start date (from calendar selection)
+    from_date_str = request.GET.get('from_date')
+    if from_date_str:
+        try:
+            from_dt = datetime.datetime.fromisoformat(from_date_str)
+            if timezone.is_naive(from_dt):
+                from_dt = timezone.make_aware(from_dt)
+        except ValueError:
+            from_dt = now
+    else:
+        from_dt = now
+
     if filter_type == 'upcoming':
-        qs = qs.filter(start_datetime__gte=now)
+        qs = qs.filter(start_datetime__gte=from_dt)
     elif filter_type == 'needs_approval':
         qs = qs.filter(
             is_approved=False,
             category__requires_approval=True,
-            start_datetime__gte=now,
+            start_datetime__gte=from_dt,
         )
 
     events = []

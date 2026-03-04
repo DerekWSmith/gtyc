@@ -137,15 +137,16 @@
         background: #fff;
     }
 
-    /* Hide second calendar on mobile to save space */
+    /* Hide extra calendars on mobile to save space */
     .calendar-second { display: none; }
+    .calendar-third { display: none; }
 
-    /* On mobile, show calendars side-by-side if both visible (used on wider phones in landscape) */
+    /* Stack calendars vertically */
     .calendars-container {
         display: flex;
-        gap: 1rem;
+        flex-direction: column;
+        gap: 0.5rem;
     }
-    .calendars-container .mini-calendar { flex: 1; }
 
     /* ---- Right panel: filters + event list ---- */
     .events-main {
@@ -330,6 +331,14 @@
             padding: 0.6rem 0.75rem;
         }
     }
+
+    /* DESKTOP: 3 calendars stacked, wider sidebar */
+    @media (min-width: 1200px) {
+        .events-sidebar {
+            width: 320px;
+        }
+        .calendar-third { display: block; }
+    }
 </style>
 {% endblock %}
 
@@ -376,6 +385,15 @@
                         <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
                     </div>
                     <div class="calendar-days" id="calendar-2-days"></div>
+                </div>
+
+                <!-- Month 3 (month after next) — desktop only -->
+                <div class="mini-calendar calendar-third">
+                    <div class="mini-calendar-title" id="calendar-3-title"></div>
+                    <div class="calendar-weekdays">
+                        <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+                    </div>
+                    <div class="calendar-days" id="calendar-3-days"></div>
                 </div>
             </div>
         </aside>
@@ -645,6 +663,13 @@ function renderCalendars() {
         document.getElementById('calendar-2-days'),
         document.getElementById('calendar-2-title'));
 
+    // Month after next (desktop only)
+    let m3 = m2 + 1, y3 = y2;
+    if (m3 > 11) { m3 = 0; y3++; }
+    renderMonth(y3, m3,
+        document.getElementById('calendar-3-days'),
+        document.getElementById('calendar-3-title'));
+
     // Sync selectors
     document.getElementById('cal-month-select').value = displayMonth;
     document.getElementById('cal-year-select').value = displayYear;
@@ -653,7 +678,8 @@ function renderCalendars() {
 function selectDate(dateStr) {
     selectedDate = new Date(dateStr + 'T00:00:00');
     renderCalendars();
-    scrollToDate(dateStr);
+    // Reload events starting from the selected date
+    loadEvents();
 }
 
 function scrollToDate(dateStr) {
@@ -721,7 +747,9 @@ function initCalendarNav() {
 // Event list rendering
 // ==================================================================
 async function loadEvents() {
-    const data = await apiFetch(`/events/admin/api/list/?filter=${currentFilter}`);
+    // Pass selected calendar date so the API returns events from that date onwards
+    const fromDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
+    const data = await apiFetch(`/events/admin/api/list/?filter=${currentFilter}&from_date=${fromDate}`);
     allEvents = data.events || [];
     renderEventList();
 }
