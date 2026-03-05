@@ -65,6 +65,10 @@ class Event(models.Model):
         help_text='1-4 RSA-certified bar staff assigned to this event',
     )
 
+    # Liquor licence tracking
+    licence_needed = models.BooleanField(default=False)
+    licence_obtained = models.BooleanField(default=False)
+
     notes = models.TextField(blank=True, default='')
 
     created_by = models.ForeignKey(

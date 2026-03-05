@@ -9,6 +9,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('password-reset/request/', views.password_reset_request_view, name='password_reset_request'),
     path('password-reset/<uidb64>/<token>/', views.password_reset_confirm_view, name='password_reset_confirm'),
+    path('profile/update/', views.profile_update_view, name='profile_update'),
 
     # Member management (secretary only)
     path('members/', admin_views.members_admin_page, name='members_admin'),

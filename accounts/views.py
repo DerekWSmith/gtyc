@@ -1,11 +1,16 @@
-from django.contrib.auth import authenticate, login, logout
+import json
+
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.forms import SetPasswordForm
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.core.mail import send_mail
 from django.conf import settings
+from django.views.decorators.http import require_POST
 
 from .forms import LoginForm, RegistrationForm
 from .models import User
@@ -114,3 +119,43 @@ def password_reset_confirm_view(request, uidb64, token):
         'valid': True,
         'form': form,
     })
+
+
+@login_required
+@require_POST
+def profile_update_view(request):
+    """Update the current user's own profile details."""
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    user = request.user
+
+    # Update name fields
+    for field in ['first_name', 'last_name', 'preferred_name', 'phone']:
+        if field in body:
+            setattr(user, field, body[field].strip() if body[field] else '')
+
+    # Update email with uniqueness check
+    new_email = body.get('email', '').strip().lower()
+    if new_email:
+        if new_email != user.email and User.objects.filter(email__iexact=new_email).exists():
+            return JsonResponse({'error': 'That email address is already in use.'})
+        user.email = new_email
+    elif not new_email:
+        return JsonResponse({'error': 'Email is required.'})
+
+    user.save()
+
+    # Update password (optional)
+    password = body.get('password')
+    if password:
+        if len(password) < 6:
+            return JsonResponse({'error': 'Password must be at least 6 characters.'})
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        # Keep user logged in after password change
+        update_session_auth_hash(request, user)
+
+    return JsonResponse({'success': True, 'display_name': user.display_name})

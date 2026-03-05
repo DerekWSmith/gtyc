@@ -30,7 +30,16 @@
       "Bash(sqlite3 /usr/local/var/www/gtyc/GTYC.sqlite3 \"SELECT * FROM roster_config;\")",
       "Bash(sqlite3 /usr/local/var/www/gtyc/GTYC.sqlite3 \"SELECT rs.id, rs.name, rs.position, rs.is_active, u.id as user_id, u.email FROM roster_staff rs LEFT JOIN users u ON \\(u.first_name || '' '' || u.last_name\\) = rs.name ORDER BY rs.position;\")",
       "Bash(chmod +x /usr/local/var/www/gtyc/ssh-gtyc.sh /usr/local/var/www/gtyc/vnc-gtyc.sh)",
-      "Bash(chmod +x /usr/local/var/www/gtyc/start-services.sh)"
+      "Bash(chmod +x /usr/local/var/www/gtyc/start-services.sh)",
+      "Bash(python /usr/local/var/www/gtyc/manage.py shell -c \":*)",
+      "Bash(ssh gtyc@100.94.1.31 \"ls /usr/local/var/www/gtyc/*.sqlite3 2>/dev/null; ls /usr/local/var/www/gtyc/db*.sqlite3 2>/dev/null; ls /usr/local/var/www/gtyc/GTYC*.sqlite3 2>/dev/null\")",
+      "Bash(ssh gtyc@100.94.1.31 \"ls /usr/local/var/www/gtyc/\")",
+      "Bash(ssh gtyc@100.94.1.31 \"ls ~/\")",
+      "Bash(ssh gtyc@100.94.1.31 \"ls ~/gtyc/\")",
+      "Bash(ssh gtyc@100.94.1.31 \"cd ~/gtyc && source venv/bin/activate && python manage.py shell -c \"\":*)",
+      "Bash(ssh gtyc@100.94.1.31 \"cat ~/gtyc/gunicorn.ctl\")",
+      "Bash(ssh gtyc@100.94.1.31 \"file ~/gtyc/gunicorn.ctl && cat ~/gtyc/start-services.sh\")",
+      "Bash(DJANGO_SETTINGS_MODULE=gtyc.settings python -c \":*)"
     ]
   }
 }

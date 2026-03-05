@@ -2,11 +2,6 @@
 
 {% block title %}Manage Events — GTYC{% endblock %}
 
-{% block head %}
-<!-- Flatpickr for date/time pickers in modal -->
-<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
-{% endblock %}
-
 {% block extra_css %}
 <style>
     /* ==============================================================
@@ -297,7 +292,6 @@
     .cat-item .form-check { margin: 0; }
 
     /* ---- Modal form tweaks ---- */
-    .flatpickr-input { background: #fff !important; }
     .form-row-datetime { display: flex; gap: 0.5rem; }
     .form-row-datetime .form-group { flex: 1; }
     .form-row-datetime .time-group { max-width: 120px; }
@@ -340,6 +334,7 @@
         .calendar-third { display: block; }
     }
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
 {% block content %}
@@ -448,19 +443,19 @@
                     <div class="row mb-3">
                         <div class="col-6 col-md-3 mb-2 mb-md-0">
                             <label class="form-label">Start Date</label>
-                            <input type="text" class="form-control" id="evt-start-date" placeholder="Date">
+                            <input type="text" class="form-control" id="evt-start-date" placeholder="Select date">
                         </div>
                         <div class="col-6 col-md-3 mb-2 mb-md-0">
                             <label class="form-label">Start Time</label>
-                            <input type="text" class="form-control" id="evt-start-time" placeholder="Time">
+                            <input type="time" class="form-control" id="evt-start-time">
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label">End Date</label>
-                            <input type="text" class="form-control" id="evt-end-date" placeholder="Date">
+                            <input type="text" class="form-control" id="evt-end-date" placeholder="Select date">
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label">End Time</label>
-                            <input type="text" class="form-control" id="evt-end-time" placeholder="Time">
+                            <input type="time" class="form-control" id="evt-end-time">
                         </div>
                     </div>
 
@@ -473,6 +468,25 @@
                         <div class="col-12 col-sm-6">
                             <label class="form-label">Contact Phone</label>
                             <input type="text" class="form-control" id="evt-contact-phone">
+                        </div>
+                    </div>
+
+                    <!-- Licence -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="evt-licence-needed"
+                                       style="width: 1.15em; height: 1.15em;"
+                                       onchange="toggleLicenceNeeded()">
+                                <label class="form-check-label" for="evt-licence-needed">Licence Needed</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="evt-licence-obtained"
+                                       style="width: 1.15em; height: 1.15em;" disabled>
+                                <label class="form-check-label text-muted" for="evt-licence-obtained" id="evt-licence-obtained-label">Licence Obtained</label>
+                            </div>
                         </div>
                     </div>
 
@@ -837,47 +851,34 @@ function applySearch() {
 
 
 // ==================================================================
-// Flatpickr setup
+// Flatpickr date pickers + time auto-sync
 // ==================================================================
-let fpStartDate, fpStartTime, fpEndDate, fpEndTime;
+let fpStartDate, fpEndDate;
 
-function initFlatpickr() {
-    const fpDateConfig = {
+function initDatePickers() {
+    const fpConfig = {
         dateFormat: 'Y-m-d',
         altInput: true,
-        altFormat: 'j M Y',
-        allowInput: true,
-    };
-    const fpTimeConfig = {
-        enableTime: true,
-        noCalendar: true,
-        dateFormat: 'H:i',
-        altInput: true,
-        altFormat: 'h:i K',
-        time_24hr: false,
+        altFormat: 'd/m/Y',
         allowInput: true,
     };
 
     fpStartDate = flatpickr('#evt-start-date', {
-        ...fpDateConfig,
-        onChange: (selectedDates, dateStr) => {
-            if (fpEndDate) {
-                fpEndDate.setDate(dateStr);
+        ...fpConfig,
+        onChange: function(selectedDates) {
+            if (selectedDates.length && !fpEndDate.selectedDates.length) {
+                fpEndDate.setDate(selectedDates[0]);
             }
-        }
+        },
     });
 
-    fpStartTime = flatpickr('#evt-start-time', {
-        ...fpTimeConfig,
-        onChange: (selectedDates) => {
-            if (fpEndTime && selectedDates.length) {
-                fpEndTime.setDate(new Date(selectedDates[0]));
-            }
-        }
-    });
+    fpEndDate = flatpickr('#evt-end-date', fpConfig);
 
-    fpEndDate = flatpickr('#evt-end-date', { ...fpDateConfig });
-    fpEndTime = flatpickr('#evt-end-time', { ...fpTimeConfig });
+    // Time auto-sync (native inputs)
+    document.getElementById('evt-start-time').addEventListener('change', function() {
+        const endTime = document.getElementById('evt-end-time');
+        if (!endTime.value) endTime.value = this.value;
+    });
 }
 
 
@@ -892,8 +893,8 @@ function openCreateModal() {
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
     fpStartDate.setDate(dateStr);
     fpEndDate.setDate(dateStr);
-    fpStartTime.clear();
-    fpEndTime.clear();
+    document.getElementById('evt-start-time').value = '';
+    document.getElementById('evt-end-time').value = '';
 
     document.getElementById('modal-title').textContent = 'New Event';
     document.getElementById('save-btn-text').textContent = 'Create Event';
@@ -914,16 +915,19 @@ async function openEditModal(eventId) {
     document.getElementById('evt-title').value = e.title;
     document.getElementById('evt-category').value = e.category_id || '';
 
-    // Parse start/end datetime for Flatpickr
+    // Parse start/end datetime
     const [startDate, startTime] = e.start_datetime.split('T');
     const [endDate, endTime] = e.end_datetime.split('T');
     fpStartDate.setDate(startDate);
-    fpStartTime.setDate(startTime);
+    document.getElementById('evt-start-time').value = startTime;
     fpEndDate.setDate(endDate);
-    fpEndTime.setDate(endTime);
+    document.getElementById('evt-end-time').value = endTime;
 
     document.getElementById('evt-contact-name').value = e.contact_name;
     document.getElementById('evt-contact-phone').value = e.contact_phone;
+    document.getElementById('evt-licence-needed').checked = e.licence_needed;
+    document.getElementById('evt-licence-obtained').checked = e.licence_obtained;
+    toggleLicenceNeeded();
     document.getElementById('evt-notes').value = e.notes;
 
     // Staff checkboxes
@@ -956,10 +960,13 @@ function resetForm() {
     document.getElementById('evt-contact-phone').value = '';
     document.getElementById('evt-notes').value = '';
     document.querySelectorAll('.staff-cb').forEach(cb => cb.checked = false);
-    if (fpStartDate) fpStartDate.clear();
-    if (fpStartTime) fpStartTime.clear();
-    if (fpEndDate) fpEndDate.clear();
-    if (fpEndTime) fpEndTime.clear();
+    document.getElementById('evt-licence-needed').checked = false;
+    document.getElementById('evt-licence-obtained').checked = false;
+    toggleLicenceNeeded();
+    fpStartDate.clear();
+    document.getElementById('evt-start-time').value = '';
+    fpEndDate.clear();
+    document.getElementById('evt-end-time').value = '';
 }
 
 function updateApprovalDisplay(isApproved, requiresApproval) {
@@ -993,6 +1000,15 @@ function updateApprovalDisplay(isApproved, requiresApproval) {
 // ==================================================================
 // CRUD operations
 // ==================================================================
+function toggleLicenceNeeded() {
+    const needed = document.getElementById('evt-licence-needed').checked;
+    const obtained = document.getElementById('evt-licence-obtained');
+    const label = document.getElementById('evt-licence-obtained-label');
+    obtained.disabled = !needed;
+    if (!needed) obtained.checked = false;
+    label.classList.toggle('text-muted', !needed);
+}
+
 async function saveEvent() {
     const staffIds = [];
     document.querySelectorAll('.staff-cb:checked').forEach(cb => {
@@ -1019,6 +1035,8 @@ async function saveEvent() {
         end_datetime: `${endDate}T${endTime}`,
         contact_name: document.getElementById('evt-contact-name').value.trim(),
         contact_phone: document.getElementById('evt-contact-phone').value.trim(),
+        licence_needed: document.getElementById('evt-licence-needed').checked,
+        licence_obtained: document.getElementById('evt-licence-obtained').checked,
         notes: document.getElementById('evt-notes').value.trim(),
         bar_staff_ids: staffIds,
     };
@@ -1146,7 +1164,7 @@ async function createCategory() {
     }
 
     input.value = '';
-    loadCategories();
+    await loadCategories();
     refreshCategoryDropdown();
 }
 
@@ -1165,7 +1183,7 @@ async function renameCategory(catId) {
         return;
     }
 
-    loadCategories();
+    await loadCategories();
     refreshCategoryDropdown();
 }
 
@@ -1199,7 +1217,7 @@ async function deleteCategory(catId) {
         return;
     }
 
-    loadCategories();
+    await loadCategories();
     refreshCategoryDropdown();
 }
 
@@ -1247,7 +1265,7 @@ function escHtml(str) {
 // ==================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initCalendarNav();
-    initFlatpickr();
+    initDatePickers();
     renderCalendars();
     loadEvents();
 });

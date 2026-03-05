@@ -19,6 +19,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://gtyc.harmonyfactory.com',
     'https://gtyc.share.zrok.io',
     'http://127.0.0.1:8000',
+    'http://127.0.0.1:8123',
+    'http://localhost:8123',
     'http://localhost:8000',
 ]
 
@@ -75,7 +77,7 @@ WSGI_APPLICATION = 'gtyc.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'GTYC.sqlite3',
+        'NAME': BASE_DIR / 'GTYC.Sonia.sqlite3',
     }
 }
 

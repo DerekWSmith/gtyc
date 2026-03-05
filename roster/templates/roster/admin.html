@@ -188,6 +188,25 @@
     </div>
 </div>
 
+<!-- Override Staff Modal -->
+<div class="modal fade" id="overrideModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="bi bi-pencil-square"></i> Override <span id="override-date-label"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2" id="override-staff-list">
+                <!-- Radio buttons rendered by JS -->
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="confirmOverride()">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Print Roster Modal — fullscreen on phones -->
 <div class="modal fade" id="printRosterModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
@@ -462,16 +481,35 @@ function renderDates(entries) {
     }).join('');
 }
 
-async function setOverride(dateStr) {
-    // Show a simple picker using staff list
-    const options = staffList.map(s => `${s.id}: ${s.name}`).join('\n');
-    const choice = prompt(`Override ${dateStr}\nEnter staff ID:\n\n${options}`);
-    if (!choice) return;
+let overrideDateStr = null;
 
-    const staffId = parseInt(choice);
-    if (isNaN(staffId)) return alert('Invalid staff ID');
+function setOverride(dateStr) {
+    overrideDateStr = dateStr;
+    document.getElementById('override-date-label').textContent = dateStr;
 
-    await apiFetch(`/roster/admin/dates/${dateStr}/override/`, {
+    const container = document.getElementById('override-staff-list');
+    container.innerHTML = staffList.map((s, i) => `
+        <div class="form-check py-1">
+            <input class="form-check-input" type="radio" name="override-staff"
+                   id="override-staff-${s.id}" value="${s.id}" ${i === 0 ? 'checked' : ''}>
+            <label class="form-check-label" for="override-staff-${s.id}"
+                   style="font-size:0.95rem; cursor:pointer;">
+                ${escHtml(s.name)}
+            </label>
+        </div>
+    `).join('');
+
+    new bootstrap.Modal(document.getElementById('overrideModal')).show();
+}
+
+async function confirmOverride() {
+    const selected = document.querySelector('input[name="override-staff"]:checked');
+    if (!selected) return;
+
+    const staffId = parseInt(selected.value);
+    bootstrap.Modal.getInstance(document.getElementById('overrideModal')).hide();
+
+    await apiFetch(`/roster/admin/dates/${overrideDateStr}/override/`, {
         method: 'POST',
         body: JSON.stringify({ staff_id: staffId }),
     });

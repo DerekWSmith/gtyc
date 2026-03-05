@@ -123,6 +123,8 @@ def api_event_list(request):
             'contact_name': e.contact_name,
             'contact_phone': e.contact_phone,
             'bar_staff': [{'id': s.id, 'name': s.display_name} for s in e.bar_staff.all()],
+            'licence_needed': e.licence_needed,
+            'licence_obtained': e.licence_obtained,
             'notes': e.notes,
             'created_by': e.created_by.display_name if e.created_by else '',
         })
@@ -150,6 +152,8 @@ def api_event_detail(request, event_id):
         'contact_name': e.contact_name,
         'contact_phone': e.contact_phone,
         'bar_staff_ids': [s.id for s in e.bar_staff.all()],
+        'licence_needed': e.licence_needed,
+        'licence_obtained': e.licence_obtained,
         'notes': e.notes,
     }
 
@@ -189,6 +193,9 @@ def api_event_create(request):
         except EventCategory.DoesNotExist:
             pass
 
+    licence_needed = bool(body.get('licence_needed', False))
+    licence_obtained = bool(body.get('licence_obtained', False)) and licence_needed
+
     event = Event(
         title=title,
         category=category,
@@ -196,6 +203,8 @@ def api_event_create(request):
         end_datetime=end,
         contact_name=body.get('contact_name', ''),
         contact_phone=body.get('contact_phone', ''),
+        licence_needed=licence_needed,
+        licence_obtained=licence_obtained,
         notes=body.get('notes', ''),
         created_by=request.user,
     )
@@ -247,6 +256,13 @@ def api_event_update(request, event_id):
         event.contact_phone = body['contact_phone']
     if 'notes' in body:
         event.notes = body['notes']
+    if 'licence_needed' in body:
+        event.licence_needed = bool(body['licence_needed'])
+    if 'licence_obtained' in body:
+        event.licence_obtained = bool(body['licence_obtained'])
+    # Enforce: can't have licence_obtained without licence_needed
+    if not event.licence_needed:
+        event.licence_obtained = False
 
     event.save()
 

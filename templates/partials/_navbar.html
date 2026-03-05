@@ -1,4 +1,9 @@
-<nav class="navbar navbar-expand-md navbar-dark bg-dark px-2 px-sm-3">
+<nav class="navbar navbar-expand-md navbar-dark px-2 px-sm-3" style="background-color:#115c84;">
+    <style>
+        .navbar .nav-link { color: #ffffff !important; }
+        .navbar .nav-link:hover { color: #ffffff !important; opacity: 0.85; }
+        .navbar .navbar-brand { color: #ffffff !important; }
+    </style>
     <div class="container-fluid">
         <a class="navbar-brand" href="/">
             <i class="bi bi-water"></i> GTYC
@@ -26,19 +31,19 @@
                 {% if user.is_authenticated and user.can_admin %}
                 <!-- Admin links (Events Officer / Secretary only) -->
                 <li class="nav-item">
-                    <a class="nav-link text-warning" href="{% url 'roster:admin_page' %}">
+                    <a class="nav-link" href="{% url 'roster:admin_page' %}">
                         <i class="bi bi-gear"></i> Manage Roster
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-warning" href="{% url 'events:admin_page' %}">
+                    <a class="nav-link" href="{% url 'events:admin_page' %}">
                         <i class="bi bi-gear"></i> Manage Events
                     </a>
                 </li>
                 {% endif %}
                 {% if user.is_authenticated and user.can_manage_members %}
                 <li class="nav-item">
-                    <a class="nav-link text-warning" href="{% url 'accounts:members_admin' %}">
+                    <a class="nav-link" href="{% url 'accounts:members_admin' %}">
                         <i class="bi bi-people"></i> Manage Members
                     </a>
                 </li>
@@ -49,14 +54,19 @@
             <ul class="navbar-nav">
                 {% if user.is_authenticated %}
                 <li class="nav-item">
-                    <span class="nav-link text-light">
-                        <i class="bi bi-person-circle"></i> {{ user.display_name }}
-                        {% if user.title %}
-                        <span class="badge bg-info">{{ user.get_title_display }}</span>
+                    <a class="nav-link" href="#" data-bs-toggle="modal"
+                       data-bs-target="#profileModal" style="cursor:pointer;"
+                       id="navbar-profile-link">
+                        <i class="bi bi-person-circle"></i>
+                        <span id="navbar-display-name">{{ user.display_name }}</span>
+                        {% if user.admin_level %}
+                        <span class="badge" style="margin-left:0.5rem;background-color:#fff;color:#115c84;">{{ user.get_admin_level_display }}</span>
+                        {% elif user.title %}
+                        <span class="badge" style="margin-left:0.5rem;background-color:#fff;color:#115c84;">{{ user.get_title_display }}</span>
                         {% elif user.is_committee %}
-                        <span class="badge bg-secondary">Committee</span>
+                        <span class="badge" style="margin-left:0.5rem;background-color:#fff;color:#115c84;">Committee</span>
                         {% endif %}
-                    </span>
+                    </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'accounts:logout' %}">
